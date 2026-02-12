@@ -1,0 +1,10 @@
+node_modules/
+.env
+*.json
+!package.json
+!package-lock.json
+*.log
+testConn.js
+insert_result.json
+.claude/
+.gemini/

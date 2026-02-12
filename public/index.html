@@ -1,0 +1,304 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Portal de Pedidos | Grupo Corripio</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+
+    <!-- Sidebar -->
+    <aside class="sidebar">
+        <div class="sidebar-brand">
+            <div class="brand-icon">GC</div>
+            <span>Grupo Corripio</span>
+        </div>
+        <nav class="sidebar-nav">
+            <a href="#" class="nav-item active" data-view="pedidos">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                    <polyline points="14 2 14 8 20 8" />
+                    <line x1="16" y1="13" x2="8" y2="13" />
+                    <line x1="16" y1="17" x2="8" y2="17" />
+                </svg>
+                Pedidos
+            </a>
+            <a href="#" class="nav-item" data-view="sync">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <polyline points="23 4 23 10 17 10" />
+                    <polyline points="1 20 1 14 7 14" />
+                    <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15" />
+                </svg>
+                Dynamics 365
+            </a>
+            <a href="#" class="nav-item" data-view="logs">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"></path>
+                    <polyline points="13 2 13 9 20 9"></polyline>
+                </svg>
+                Logs de Sync
+            </a>
+        </nav>
+        <div class="sidebar-footer">
+            <div class="connection-status" id="dbStatus">
+                <span class="status-dot"></span>
+                Conectando...
+            </div>
+        </div>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="main-content">
+
+        <!-- Top Bar -->
+        <header class="topbar">
+            <div class="topbar-left">
+                <h1 id="page-title">Pedidos</h1>
+                <span class="badge" id="contador">Cargando...</span>
+            </div>
+            <div class="topbar-right">
+                <button class="btn btn-ghost" onclick="cargarPedidos()" title="Recargar datos">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <polyline points="23 4 23 10 17 10" />
+                        <polyline points="1 20 1 14 7 14" />
+                        <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15" />
+                    </svg>
+                </button>
+            </div>
+        </header>
+
+        <!-- Vista Lista de Pedidos -->
+        <div id="vista-lista">
+
+            <!-- Filtros -->
+            <section class="filters-bar">
+                <div class="search-box">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <circle cx="11" cy="11" r="8" />
+                        <line x1="21" y1="21" x2="16.65" y2="16.65" />
+                    </svg>
+                    <input type="text" id="searchGlobal" placeholder="Buscar por cliente, pedido, vendedor o RNC...">
+                </div>
+                <div class="filter-group">
+                    <label>Desde</label>
+                    <input type="date" id="fechaDesde">
+                </div>
+                <div class="filter-group">
+                    <label>Hasta</label>
+                    <input type="date" id="fechaHasta">
+                </div>
+                <div class="filter-group">
+                    <label>Estado</label>
+                    <select id="filtroEstado">
+                        <option value="todos">Todos</option>
+                        <option value="pendiente">Pendientes</option>
+                        <option value="enviado">Enviados a Dynamics</option>
+                    </select>
+                </div>
+                <button class="btn btn-ghost" onclick="limpiarFiltros()">Limpiar</button>
+            </section>
+
+            <!-- Tabla Principal -->
+            <section class="table-card">
+                <div class="table-wrapper">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Pedido</th>
+                                <th>Cliente</th>
+                                <th>RNC</th>
+                                <th>Vendedor</th>
+                                <th>Fecha</th>
+                                <th class="text-right">Total</th>
+                                <th class="text-center">Estado</th>
+                                <th class="text-center">Dynamics</th>
+                                <th></th>
+                            </tr>
+                        </thead>
+                        <tbody id="pedidos-body"></tbody>
+                    </table>
+                </div>
+                <div id="loading-state" class="loading-state">
+                    <div class="spinner"></div>
+                    <p>Consultando base de datos...</p>
+                </div>
+                <div id="empty-state" class="empty-state hidden">
+                    <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="1.5">
+                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                        <polyline points="14 2 14 8 20 8" />
+                    </svg>
+                    <p>No se encontraron pedidos con los filtros actuales</p>
+                </div>
+            </section>
+        </div>
+
+        <!-- Vista Dynamics 365 - Mapeo de Campos -->
+        <div id="vista-dynamics" class="hidden">
+            <div style="padding: 0 32px 20px;">
+                <p style="color: var(--text-secondary); margin-bottom: 16px;">Campos disponibles en Dynamics 365 F&O
+                    para la insercion de ordenes de venta. Usa esta referencia para mapear los campos de tu base de
+                    datos SQL.</p>
+            </div>
+
+            <!-- Columnas SQL -->
+            <div style="padding: 0 32px 20px;">
+                <h3
+                    style="margin-bottom: 12px; font-size: 14px; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px;">
+                    Campos en tu Base de Datos SQL</h3>
+            </div>
+            <section class="table-card" style="margin-bottom: 24px;">
+                <div class="table-wrapper">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Tabla</th>
+                                <th>Columna</th>
+                                <th>Tipo</th>
+                                <th>Max Length</th>
+                                <th>Nullable</th>
+                            </tr>
+                        </thead>
+                        <tbody id="sql-columns-body"></tbody>
+                    </table>
+                </div>
+                <div id="sql-loading" class="loading-state hidden">
+                    <div class="spinner"></div>
+                    <p>Consultando estructura SQL...</p>
+                </div>
+            </section>
+
+            <!-- Header Dynamics -->
+            <div style="padding: 0 32px 12px; display: flex; align-items: center; gap: 12px;">
+                <h3
+                    style="margin: 0; font-size: 14px; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px;">
+                    SalesOrderHeadersV2</h3>
+                <span class="badge" id="header-count">-</span>
+                <input type="text" id="searchHeader" placeholder="Filtrar campos del header..."
+                    style="margin-left: auto; padding: 6px 12px; border: 1px solid var(--border); border-radius: var(--radius); font-size: 12px; width: 220px;">
+            </div>
+            <section class="table-card" style="margin-bottom: 24px;">
+                <div class="table-wrapper" style="max-height: 500px; overflow-y: auto;">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th style="position: sticky; top: 0;">Campo Dynamics</th>
+                                <th style="position: sticky; top: 0;">Valor Ejemplo</th>
+                                <th style="position: sticky; top: 0;">Tipo</th>
+                            </tr>
+                        </thead>
+                        <tbody id="dynamics-header-body"></tbody>
+                    </table>
+                </div>
+                <div id="dynamics-header-loading" class="loading-state">
+                    <div class="spinner"></div>
+                    <p>Consultando Dynamics 365...</p>
+                </div>
+            </section>
+
+            <!-- Lines Dynamics -->
+            <div style="padding: 0 32px 12px; display: flex; align-items: center; gap: 12px;">
+                <h3
+                    style="margin: 0; font-size: 14px; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px;">
+                    SalesOrderLines</h3>
+                <span class="badge" id="lines-count">-</span>
+                <input type="text" id="searchLines" placeholder="Filtrar campos de lineas..."
+                    style="margin-left: auto; padding: 6px 12px; border: 1px solid var(--border); border-radius: var(--radius); font-size: 12px; width: 220px;">
+            </div>
+            <section class="table-card" style="margin-bottom: 32px;">
+                <div class="table-wrapper" style="max-height: 500px; overflow-y: auto;">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th style="position: sticky; top: 0;">Campo Dynamics</th>
+                                <th style="position: sticky; top: 0;">Valor Ejemplo</th>
+                                <th style="position: sticky; top: 0;">Tipo</th>
+                            </tr>
+                        </thead>
+                        <tbody id="dynamics-lines-body"></tbody>
+                    </table>
+                </div>
+                <div id="dynamics-lines-loading" class="loading-state hidden">
+                    <div class="spinner"></div>
+                    <p>Consultando Dynamics 365...</p>
+                </div>
+            </section>
+        </div>
+
+        <!-- Vista Logs de Sync -->
+        <div id="vista-logs" class="hidden">
+            <div style="padding: 0 32px 20px; display: flex; justify-content: space-between; align-items: center;">
+                <p style="color: var(--text-secondary);">Historial detallado de los últimos eventos de sincronización
+                    con Dynamics 365.</p>
+                <button class="btn btn-ghost btn-sm" onclick="cargarLogsSync()">
+                    Actualizar Logs
+                </button>
+            </div>
+            <section class="table-card" style="margin-bottom: 32px;">
+                <div class="table-wrapper">
+                    <table id="logs-table">
+                        <thead>
+                            <tr>
+                                <th style="width: 100px;">Hora</th>
+                                <th>Mensaje / Evento</th>
+                            </tr>
+                        </thead>
+                        <tbody id="logs-body"></tbody>
+                    </table>
+                </div>
+                <div id="logs-loading" class="loading-state hidden">
+                    <div class="spinner"></div>
+                    <p>Cargando registros...</p>
+                </div>
+            </section>
+        </div>
+
+        <!-- Vista Detalle -->
+        <div id="vista-detalle" class="hidden">
+            <button class="btn btn-back" onclick="cerrarDetalle()">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <line x1="19" y1="12" x2="5" y2="12" />
+                    <polyline points="12 19 5 12 12 5" />
+                </svg>
+                Volver al listado
+            </button>
+
+            <!-- Info del pedido -->
+            <div class="detail-header" id="detail-header-info"></div>
+
+            <!-- Tabla de lineas -->
+            <section class="table-card">
+                <div class="table-wrapper">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Codigo</th>
+                                <th>Producto</th>
+                                <th>Categoria</th>
+                                <th>Marca</th>
+                                <th class="text-center">Cantidad</th>
+                                <th class="text-right">Precio Unit.</th>
+                                <th class="text-right">Subtotal</th>
+                            </tr>
+                        </thead>
+                        <tbody id="detalle-body"></tbody>
+                        <tfoot id="detalle-footer"></tfoot>
+                    </table>
+                </div>
+                <div id="detalle-loading" class="loading-state hidden">
+                    <div class="spinner"></div>
+                    <p>Cargando lineas del pedido...</p>
+                </div>
+            </section>
+        </div>
+
+    </main>
+
+    <script src="app.js"></script>
+</body>
+
+</html>
