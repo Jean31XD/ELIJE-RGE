@@ -4,10 +4,14 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Portal de Pedidos | Grupo Corripio</title>
+    <title>Portal de Pedidos | Manuel Corripio</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+        integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+        integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
 </head>
 
 <body>
@@ -15,11 +19,19 @@
     <!-- Sidebar -->
     <aside class="sidebar">
         <div class="sidebar-brand">
-            <div class="brand-icon">GC</div>
-            <span>Grupo Corripio</span>
+            <img src="logo-mc.png" alt="Manuel Corripio S.A.S" class="brand-logo">
         </div>
         <nav class="sidebar-nav">
-            <a href="#" class="nav-item active" data-view="pedidos">
+            <a href="#" class="nav-item active" data-view="dashboard">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <rect x="3" y="3" width="7" height="7"></rect>
+                    <rect x="14" y="3" width="7" height="7"></rect>
+                    <rect x="14" y="14" width="7" height="7"></rect>
+                    <rect x="3" y="14" width="7" height="7"></rect>
+                </svg>
+                Dashboard
+            </a>
+            <a href="#" class="nav-item" data-view="pedidos">
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
                     <polyline points="14 2 14 8 20 8" />
@@ -27,6 +39,13 @@
                     <line x1="16" y1="17" x2="8" y2="17" />
                 </svg>
                 Pedidos
+            </a>
+            <a href="#" class="nav-item" data-view="cobros">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <line x1="12" y1="1" x2="12" y2="23"></line>
+                    <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path>
+                </svg>
+                Cobros
             </a>
             <a href="#" class="nav-item" data-view="sync">
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -43,6 +62,22 @@
                 </svg>
                 Logs de Sync
             </a>
+            <a href="#" class="nav-item" data-view="rangos">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+                    <line x1="3" y1="9" x2="21" y2="9"></line>
+                    <line x1="3" y1="15" x2="21" y2="15"></line>
+                    <line x1="9" y1="3" x2="9" y2="21"></line>
+                </svg>
+                Gestión de Rangos
+            </a>
+            <a href="#" class="nav-item" data-view="tracking">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path>
+                    <circle cx="12" cy="10" r="3"></circle>
+                </svg>
+                Tracking
+            </a>
         </nav>
         <div class="sidebar-footer">
             <div class="connection-status" id="dbStatus">
@@ -58,8 +93,8 @@
         <!-- Top Bar -->
         <header class="topbar">
             <div class="topbar-left">
-                <h1 id="page-title">Pedidos</h1>
-                <span class="badge" id="contador">Cargando...</span>
+                <h1 id="page-title">Dashboard</h1>
+                <span class="badge hidden" id="contador">Cargando...</span>
             </div>
             <div class="topbar-right">
                 <button class="btn btn-ghost" onclick="cargarPedidos()" title="Recargar datos">
@@ -72,8 +107,17 @@
             </div>
         </header>
 
+        <!-- Vista Dashboard -->
+        <div id="vista-dashboard">
+            <div class="dashboard-loading" id="dashboard-loading">
+                <div class="spinner"></div>
+                <p>Cargando dashboard...</p>
+            </div>
+            <div id="dashboard-content" class="hidden"></div>
+        </div>
+
         <!-- Vista Lista de Pedidos -->
-        <div id="vista-lista">
+        <div id="vista-lista" class="hidden">
 
             <!-- Filtros -->
             <section class="filters-bar">
@@ -135,6 +179,65 @@
                     <p>No se encontraron pedidos con los filtros actuales</p>
                 </div>
             </section>
+
+            <!-- Paginación -->
+            <div id="pagination-container" class="pagination-bar"></div>
+        </div>
+
+        <!-- Vista Cobros Realizados -->
+        <div id="vista-cobros" class="hidden">
+            <!-- Filtros Cobros -->
+            <section class="filters-bar">
+                <div class="search-box">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <circle cx="11" cy="11" r="8" />
+                        <line x1="21" y1="21" x2="16.65" y2="16.65" />
+                    </svg>
+                    <input type="text" id="searchCobros" placeholder="Buscar por cliente, factura o cobrador...">
+                </div>
+                <div class="filter-group">
+                    <label>Desde</label>
+                    <input type="date" id="cobrosDesde">
+                </div>
+                <div class="filter-group">
+                    <label>Hasta</label>
+                    <input type="date" id="cobrosHasta">
+                </div>
+                <button class="btn btn-ghost" onclick="limpiarFiltrosCobros()">Limpiar</button>
+            </section>
+
+            <!-- Tabla Cobros -->
+            <section class="table-card">
+                <div class="table-wrapper">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Factura</th>
+                                <th>Cliente</th>
+                                <th class="text-right">Monto</th>
+                                <th class="text-right">Saldo Ant.</th>
+                                <th class="text-right">Saldo Nvo.</th>
+                                <th>Fecha</th>
+                                <th>Cobrador</th>
+                                <th>Método</th>
+                            </tr>
+                        </thead>
+                        <tbody id="cobros-body"></tbody>
+                    </table>
+                </div>
+                <div id="cobros-loading" class="loading-state hidden">
+                    <div class="spinner"></div>
+                    <p>Cargando historial de cobros...</p>
+                </div>
+                <div id="cobros-empty-state" class="empty-state hidden">
+                    <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="1.5">
+                        <path d="M12 1v22M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path>
+                    </svg>
+                    <p>No se encontraron cobros realizados</p>
+                </div>
+            </section>
+
+            <div id="cobros-pagination-container" class="pagination-bar"></div>
         </div>
 
         <!-- Vista Dynamics 365 - Mapeo de Campos -->
@@ -229,12 +332,90 @@
             </section>
         </div>
 
-        <!-- Vista Logs de Sync -->
+        <div id="vista-rangos" class="hidden">
+            <div style="padding: 0 32px 20px; display: flex; align-items: center; gap: 16px;">
+                <div style="flex: 1;">
+                    <p style="color: var(--text-secondary); margin: 0;">Administra los esquemas de rangos y valores por
+                        categoría.</p>
+                </div>
+                <div class="search-box" style="flex: 0 0 300px; min-width: auto;">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <circle cx="11" cy="11" r="8" />
+                        <line x1="21" y1="21" x2="16.65" y2="16.65" />
+                    </svg>
+                    <input type="text" id="searchRangos" placeholder="Buscar por categoría...">
+                </div>
+                <button class="btn btn-primary" onclick="abrirModalRango()">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <line x1="12" y1="5" x2="12" y2="19" />
+                        <line x1="5" y1="12" x2="19" y2="12" />
+                    </svg>
+                    Agregar Rango
+                </button>
+            </div>
+            <section class="table-card" style="margin-bottom: 32px;">
+                <div class="table-wrapper">
+                    <table id="rangos-table">
+                        <thead>
+                            <tr>
+                                <th>Categoría</th>
+                                <th class="text-center">Rango Min</th>
+                                <th class="text-center">Rango Max</th>
+                                <th class="text-right">Valor</th>
+                                <th class="text-right">Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody id="rangos-body"></tbody>
+                    </table>
+                </div>
+                <div id="rangos-loading" class="loading-state hidden">
+                    <div class="spinner"></div>
+                    <p>Cargando esquemas de rangos...</p>
+                </div>
+            </section>
+        </div>
+
+        <!-- Modal Rango -->
+        <div id="modal-rango" class="modal hidden">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h2 id="modal-rango-titulo">Editar Rango</h2>
+                    <button class="btn-close" onclick="cerrarModalRango()">&times;</button>
+                </div>
+                <div class="modal-body">
+                    <form id="form-rango">
+                        <input type="hidden" id="rango-id">
+                        <div class="form-group">
+                            <label>Categoría</label>
+                            <input type="text" id="rango-categoria" required placeholder="Ej: General">
+                        </div>
+                        <div class="form-grid">
+                            <div class="form-group">
+                                <label>Rango Min</label>
+                                <input type="number" id="rango-min" required>
+                            </div>
+                            <div class="form-group">
+                                <label>Rango Max</label>
+                                <input type="number" id="rango-max" required>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label>Valor</label>
+                            <input type="number" step="0.0001" id="rango-valor" required>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-ghost" onclick="cerrarModalRango()">Cancelar</button>
+                            <button type="submit" class="btn btn-primary">Guardar Cambios</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
         <div id="vista-logs" class="hidden">
-            <div style="padding: 0 32px 20px; display: flex; justify-content: space-between; align-items: center;">
-                <p style="color: var(--text-secondary);">Historial detallado de los últimos eventos de sincronización
-                    con Dynamics 365.</p>
-                <button class="btn btn-ghost btn-sm" onclick="cargarLogsSync()">
+            <div style="padding: 0 32px 20px; display: flex; align-items: center;">
+                <p style="color: var(--text-secondary); margin: 0; flex: 1;">Administra los esquemas de rangos y valores
+                    por categoría.</p>
+                <button class="btn btn-ghost btn-sm" id="btn-actualizar-logs" onclick="cargarLogsSync()">
                     Actualizar Logs
                 </button>
             </div>
@@ -255,6 +436,75 @@
                     <p>Cargando registros...</p>
                 </div>
             </section>
+
+            <!-- Paginación Logs -->
+            <div id="logs-pagination-container" class="pagination-bar"></div>
+        </div>
+
+        <div id="vista-tracking" class="hidden">
+            <div
+                style="padding: 0 32px 20px; display: flex; align-items: center; justify-content: space-between; gap: 20px; flex-wrap: wrap;">
+                <p style="color: var(--text-secondary); margin: 0; flex: 1;">Visualiza la ubicación y actividad reciente
+                    de los vendedores.</p>
+
+                <div style="display: flex; gap: 12px; flex-wrap: wrap;">
+                    <div class="filter-group" style="min-width: 250px;">
+                        <label>Filtrar por Vendedor</label>
+                        <select id="filtroVendedorTracking" onchange="aplicarFiltrosTracking()">
+                            <option value="todos">Todos los vendedores</option>
+                        </select>
+                    </div>
+                    <div class="filter-group">
+                        <label>Fecha</label>
+                        <input type="date" id="filtroFechaTracking" onchange="aplicarFiltrosTracking()">
+                    </div>
+                    <div class="filter-group">
+                        <label>Acción</label>
+                        <select id="filtroAccionTracking" onchange="aplicarFiltrosTracking()">
+                            <option value="todos">Todas las acciones</option>
+                            <option value="ORDER">Pedidos (ORDER)</option>
+                            <option value="CHECKIN">Check-ins (CHECKIN)</option>
+                            <option value="PERIODIC">Periódico</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Mapa -->
+            <section class="table-card"
+                style="margin-bottom: 24px; padding: 0; min-height: 400px; position: relative; z-index: 1;">
+                <div id="map" style="height: 450px; width: 100%;"></div>
+            </section>
+
+            <!-- Tabla de Logs de Tracking -->
+            <section class="table-card">
+                <div class="table-wrapper">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Vendedor</th>
+                                <th>Acción</th>
+                                <th>Coordenadas</th>
+                                <th>Fecha/Hora</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tracking-body"></tbody>
+                    </table>
+                </div>
+                <div id="tracking-loading" class="loading-state hidden">
+                    <div class="spinner"></div>
+                    <p>Cargando datos de tracking...</p>
+                </div>
+                <div id="tracking-empty" class="empty-state hidden">
+                    <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="1.5">
+                        <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path>
+                        <circle cx="12" cy="10" r="3"></circle>
+                    </svg>
+                    <p>No hay registros de tracking disponibles</p>
+                </div>
+            </section>
+            <div id="tracking-pagination-container" class="pagination-bar" style="margin-top: 20px;"></div>
+        </div>
         </div>
 
         <!-- Vista Detalle -->
@@ -298,6 +548,7 @@
 
     </main>
 
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
     <script src="app.js"></script>
 </body>
 
