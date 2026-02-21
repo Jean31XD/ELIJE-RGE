@@ -1,0 +1,15 @@
+﻿   Conectando a Azure SQL...
+   Conexion a Azure SQL establecida.
+--- Cruce de Datos (Pedidos -> Mapa Vendedores) ---
+  - [JOSE MANUEL BISONO NUNEZ] -> Personnel: OK (22500454958) | Secretario: N/A
+
+--- Mapeo de Clientes (AccountNum) ---
+  - Pedido: PED-20260221-0009 | Cliente: ELECTRICOS Y PLOMERIA R Y V SRL | RNC: 131125875 -> AccountNum: CL-000029195
+  - Pedido: PED-20260221-0008 | Cliente: ELECTRICOS Y PLOMERIA R Y V SRL | RNC: 131125875 -> AccountNum: CL-000029195
+  - Pedido: PED-20260221-0007 | Cliente: ELECTRICOS Y PLOMERIA R Y V SRL | RNC: 131125875 -> AccountNum: CL-000029195
+  - Pedido: PED-20260221-0006 | Cliente: FERRETERIA RAFI SRL | RNC: 132940415 -> AccountNum: CL-000029195
+  - Pedido: PED-20260221-0005 | Cliente: GO COMERCIAL SRL | RNC: 132868821 -> AccountNum: CL-000017653
+  - Pedido: PED-20260221-0004 | Cliente: EL FURGON FERRETERO SRL | RNC: 132642929 -> AccountNum: CL-000011223
+  - Pedido: PED-20260221-0003 | Cliente: GO COMERCIAL SRL | RNC: 132868821 -> AccountNum: CL-000017653
+  - Pedido: PED-20260221-0002 | Cliente: CERYMADERA SRL | RNC: 132846168 -> AccountNum: CL-000018112
+  - Pedido: PED-20260221-0001 | Cliente: JOSE NICOLAS RODRIGUEZ BAEZ | RNC: 00115676843 -> AccountNum: CL-000006480

@@ -92,15 +92,15 @@ async function getPendingOrders() {
                p.cliente_cuenta as pedido_cliente_cuenta,
                p.dynamics_order_number,
                m.personnel_number AS vendedor_personnel_number,
-               m.secretario_personnel_number AS secretario_personnel_number,
-               COALESCE(NULLIF(LTRIM(RTRIM(p.cliente_cuenta)), ''), c.accountnum, ct.accountnum) AS cliente_accountnum
+               -- Priorizar custtable (RNC) y Cartera_cliente (Nombre) sobre p.cliente_cuenta para evitar datos basura
+               COALESCE(ct.accountnum, c.accountnum, NULLIF(LTRIM(RTRIM(p.cliente_cuenta)), '')) AS cliente_accountnum
         FROM [dbo].[pedidos] p
         LEFT JOIN [dbo].[vendedor_dynamics_map] m
             ON UPPER(LTRIM(RTRIM(p.vendedor_nombre))) = UPPER(LTRIM(RTRIM(m.vendedor_nombre)))
-        LEFT JOIN [dbo].[Cartera_cliente] c
-            ON UPPER(LTRIM(RTRIM(p.cliente_nombre))) = UPPER(LTRIM(RTRIM(c.custname)))
         LEFT JOIN [dbo].[custtable] ct
             ON (p.cliente_rnc IS NOT NULL AND LTRIM(RTRIM(p.cliente_rnc)) <> '' AND LTRIM(RTRIM(p.cliente_rnc)) = LTRIM(RTRIM(ct.RNC)))
+        LEFT JOIN [dbo].[Cartera_cliente] c
+            ON UPPER(LTRIM(RTRIM(p.cliente_nombre))) = UPPER(LTRIM(RTRIM(c.custname)))
         WHERE ISNULL(p.enviado_dynamics, 0) = 0
           AND (p.estado IS NULL OR p.estado <> 'CANCELADO')
           AND (p.sync_error IS NULL OR p.sync_error = '')
@@ -120,15 +120,14 @@ async function getOrderById(pedidoId) {
                    p.cliente_cuenta as pedido_cliente_cuenta,
                    p.dynamics_order_number,
                    m.personnel_number AS vendedor_personnel_number,
-                   m.secretario_personnel_number AS secretario_personnel_number,
-                   COALESCE(NULLIF(LTRIM(RTRIM(p.cliente_cuenta)), ''), c.accountnum, ct.accountnum) AS cliente_accountnum
+                   COALESCE(ct.accountnum, c.accountnum, NULLIF(LTRIM(RTRIM(p.cliente_cuenta)), '')) AS cliente_accountnum
             FROM [dbo].[pedidos] p
             LEFT JOIN [dbo].[vendedor_dynamics_map] m
                 ON UPPER(LTRIM(RTRIM(p.vendedor_nombre))) = UPPER(LTRIM(RTRIM(m.vendedor_nombre)))
-            LEFT JOIN [dbo].[Cartera_cliente] c
-                ON UPPER(LTRIM(RTRIM(p.cliente_nombre))) = UPPER(LTRIM(RTRIM(c.custname)))
             LEFT JOIN [dbo].[custtable] ct
                 ON (p.cliente_rnc IS NOT NULL AND LTRIM(RTRIM(p.cliente_rnc)) <> '' AND LTRIM(RTRIM(p.cliente_rnc)) = LTRIM(RTRIM(ct.RNC)))
+            LEFT JOIN [dbo].[Cartera_cliente] c
+                ON UPPER(LTRIM(RTRIM(p.cliente_nombre))) = UPPER(LTRIM(RTRIM(c.custname)))
             WHERE p.pedido_id = @pedidoId
         `);
     return result.recordset[0];

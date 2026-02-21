@@ -27,6 +27,8 @@ const SALES_ORDER_CONFIG = {
         InvoiceCustomerAccountNumber: 'CL-000001132',        // Cuenta de facturación
         CurrencyCode: 'DOP',                                 // Moneda (Peso Dominicano)
         RequestedShippingDate: new Date().toISOString().split('T')[0] + 'T12:00:00Z', // Fecha de envío
+        CustomerRequisitionNumber: 'PED-TEST-001',           // Número de pedido (Referencia)
+        CustomersOrderReference: 'VENDEDOR PRUEBA',          // Nombre del vendedor
     },
 
     // --- Líneas de la Orden ---

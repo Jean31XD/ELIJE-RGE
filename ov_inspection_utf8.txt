@@ -1,0 +1,68 @@
+﻿
+--- Inspeccionando OV: OV000761171 ---
+  ArePricesIncludingSalesTax: Yes
+  CommissionSalesRepresentativeGroupId: 
+  CustomerPaymentMethodName: TRF
+  CustomerPaymentMethodSpecificationName: 
+  DeliveryAddressDistrictName: Pantoja
+  DeliveryAddressName: COMERCIAL DEL CARIBE RB SRL
+  EInvoiceDimensionAccountCode: 
+  EUSalesListCode: IncludeNot
+  FulfillmentPolicyName: 
+  InvoiceAddressDistrictName: 
+  InvoiceCustomerAccountNumber: CL-000000839
+  IsEInvoiceDimensionAccountCodeSpecifiedPerLine: No
+  IsSalesProcessingStopped: Yes
+  OrderResponsiblePersonnelNumber: 22500454958
+  OrderTakerPersonnelNumber: 22500454958
+  OrderingCustomerAccountNumber: CL-000000839
+  OverrideSalesTax: No
+  PaymentScheduleName: 
+  PaymentTermsName: Contado
+  SalesOrderName: COMERCIAL DEL CARIBE RB SRL
+  SalesOrderNumber: OV000761171
+  SalesOrderOriginCode: 
+  SalesOrderPoolId: 
+  SalesOrderProcessingStatus: Active
+  SalesOrderPromisingMethod: None
+  SalesOrderStatus: Backorder
+  SalesRebateCustomerGroupId: 
+  SalesTaxGroupCode: LOCAL
+  SalesUnitId: 
+  ShippingCarrierCustomerAccountNumber: 
+  ThirdPartySalesDigitalPlatform: No
+  ThirdPartySalesDigitalPlatformCNPJ: 
+
+--- Inspeccionando OV: OV000761317 ---
+  ArePricesIncludingSalesTax: Yes
+  CommissionSalesRepresentativeGroupId: 
+  CustomerPaymentMethodName: TRF
+  CustomerPaymentMethodSpecificationName: 
+  DeliveryAddressDistrictName: Proyecto Ciudad
+  DeliveryAddressName: 9 11 EXPRESS FERRETERIA SRL
+  EInvoiceDimensionAccountCode: 
+  EUSalesListCode: IncludeNot
+  FulfillmentPolicyName: 
+  InvoiceAddressDistrictName: 
+  InvoiceCustomerAccountNumber: CL-000000866
+  IsEInvoiceDimensionAccountCodeSpecifiedPerLine: No
+  IsSalesProcessingStopped: Yes
+  OrderResponsiblePersonnelNumber: 22500454958
+  OrderTakerPersonnelNumber: 22500454958
+  OrderingCustomerAccountNumber: CL-000000866
+  OverrideSalesTax: No
+  PaymentScheduleName: 
+  PaymentTermsName: Contado
+  SalesOrderName: 9 11 EXPRESS FERRETERIA SRL
+  SalesOrderNumber: OV000761317
+  SalesOrderOriginCode: 
+  SalesOrderPoolId: 
+  SalesOrderProcessingStatus: Active
+  SalesOrderPromisingMethod: None
+  SalesOrderStatus: Backorder
+  SalesRebateCustomerGroupId: 
+  SalesTaxGroupCode: LOCAL
+  SalesUnitId: 
+  ShippingCarrierCustomerAccountNumber: 
+  ThirdPartySalesDigitalPlatform: No
+  ThirdPartySalesDigitalPlatformCNPJ: 

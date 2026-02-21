@@ -64,11 +64,19 @@ const API_USER_PERSONNEL = '40226548424'; // Personnel number del usuario API (e
             console.log(`  [REPARANDO] ${row.dynamics_order_number} | Resp actual: ${o.OrderResponsiblePersonnelNumber || 'VACIO'} -> correcto: ${row.vendedor_personnel_number}`);
 
             const patchUrl = `${base}SalesOrderHeadersV2(dataAreaId='maco',SalesOrderNumber='${row.dynamics_order_number}')`;
-            await axios.patch(patchUrl, {
+            
+            const patchData = {
                 OrderResponsiblePersonnelNumber: row.vendedor_personnel_number,
                 CustomerRequisitionNumber: row.pedido_numero,
                 CustomersOrderReference: row.vendedor_nombre,
-            }, {
+            };
+
+            const taker = row.secretario_personnel_number || row.vendedor_personnel_number;
+            if (taker) {
+                patchData.SalesOrderTakerPersonnelNumber = taker;
+            }
+
+            await axios.patch(patchUrl, patchData, {
                 headers: { ...h, 'Content-Type': 'application/json' }
             });
 
