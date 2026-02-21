@@ -193,6 +193,35 @@ async function processOrder(token, pedido) {
     }
     log(`  Líneas insertadas exitosamente.`);
 
+    // PATCH garantizado: espera 10s (D365 necesita procesar internamente) y luego
+    // sobrescribe el responsable y los campos de referencia ANTES de marcar como enviado.
+    // Esto asegura que si el servidor se reinicia, el pedido no queda marcado como enviado
+    // sin tener los datos correctos en D365.
+    await new Promise(resolve => setTimeout(resolve, 10000));
+
+    const patchUrl = `${getBaseUrl()}SalesOrderHeadersV2(dataAreaId='maco',SalesOrderNumber='${salesOrderNumber}')`;
+    const patchData = {
+        CustomerRequisitionNumber: pedido.pedido_numero,
+        CustomersOrderReference: pedido.vendedor_nombre,
+    };
+    if (pedido.vendedor_personnel_number) {
+        patchData.OrderResponsiblePersonnelNumber = pedido.vendedor_personnel_number;
+        patchData.OrderTakerPersonnelNumber = pedido.secretario_personnel_number || pedido.vendedor_personnel_number;
+    }
+
+    try {
+        await axios.patch(patchUrl, patchData, {
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json',
+                'Accept': 'application/json'
+            }
+        });
+        log(`  [PATCH OK] Resp: ${pedido.vendedor_personnel_number || '-'} | CRN: "${pedido.pedido_numero}" | Ref: "${pedido.vendedor_nombre}"`);
+    } catch (patchErr) {
+        log(`  [PATCH ERROR] ${patchErr.message} (el pedido se marcará como enviado de todas formas)`);
+    }
+
     await markOrderAsSent(pedido.pedido_id, salesOrderNumber);
     log(`  COMPLETADO -> ${pedido.pedido_numero} = ${salesOrderNumber}`);
 
@@ -220,15 +249,11 @@ async function pollCycle() {
         const token = await getAccessToken();
         let exitosos = 0;
         let fallidos = 0;
-        const procesadosParaPatch = []; // OVs que necesitan PATCH de responsable después
 
         for (const pedido of pendingOrders) {
             try {
-                const salesOrderNumber = await processOrder(token, pedido);
+                await processOrder(token, pedido);
                 exitosos++;
-                if (pedido.vendedor_personnel_number) {
-                    procesadosParaPatch.push({ salesOrderNumber, pedido });
-                }
             } catch (error) {
                 fallidos++;
                 const errMsg = extractErrorMessage(error);
@@ -243,39 +268,6 @@ async function pollCycle() {
         }
 
         log(`Resumen: ${exitosos} exitosos, ${fallidos} fallidos`);
-
-        // PATCH diferido: esperar 15s para que D365 termine su procesamiento interno
-        // y luego sobrescribir el responsable con el vendedor correcto
-        if (procesadosParaPatch.length > 0) {
-            setTimeout(async () => {
-                try {
-                    const freshToken = await getAccessToken();
-                    for (const { salesOrderNumber, pedido } of procesadosParaPatch) {
-                        const patchUrl = `${getBaseUrl()}SalesOrderHeadersV2(dataAreaId='maco',SalesOrderNumber='${salesOrderNumber}')`;
-                        await axios.patch(patchUrl, {
-                            OrderResponsiblePersonnelNumber: pedido.vendedor_personnel_number,
-                            OrderTakerPersonnelNumber: pedido.secretario_personnel_number || pedido.vendedor_personnel_number,
-                            CustomerRequisitionNumber: pedido.pedido_numero,
-                            CustomersOrderReference: pedido.vendedor_nombre,
-                        }, {
-                            headers: {
-                                'Authorization': `Bearer ${freshToken}`,
-                                'Content-Type': 'application/json',
-                                'Accept': 'application/json'
-                            }
-                        });
-                        // Verificar inmediatamente si el PATCH persistió
-                        const verifyRes = await axios.get(patchUrl, {
-                            headers: { 'Authorization': `Bearer ${freshToken}`, 'Accept': 'application/json' }
-                        });
-                        const saved = verifyRes.data;
-                        log(`  [PATCH] ${salesOrderNumber} -> Resp: ${saved.OrderResponsiblePersonnelNumber} | CRN: "${saved.CustomerRequisitionNumber}" | Vendedor: "${saved.CustomersOrderReference}"`);
-                    }
-                } catch (err) {
-                    log(`  [PATCH] Error: ${err.message}`);
-                }
-            }, 15000);
-        }
     } catch (error) {
         log(`Error general: ${error.message}`);
     } finally {
