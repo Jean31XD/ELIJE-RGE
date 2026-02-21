@@ -11,7 +11,14 @@ const {
     getOrderLines,
     getPool,
     resetOrderSyncStatus,
-    getOrderById
+    getOrderById,
+    getRangos,
+    createRango,
+    updateRango,
+    deleteRango,
+    getDashboardData,
+    getAllCobros,
+    getTrackingLogs
 } = require('./dbConnection');
 const { getAccessToken } = require('./auth');
 const axios = require('axios');
@@ -61,8 +68,56 @@ app.post('/api/pedidos/:id/retry', async (req, res) => {
     }
 });
 
+// --- API DASHBOARD ---
+app.get('/api/dashboard', async (req, res) => {
+    try {
+        const data = await getDashboardData();
+        res.json(data);
+    } catch (err) {
+        console.error('Error en /api/dashboard:', err.message);
+        res.status(500).json({ error: err.message });
+    }
+});
+
 // 3. Static Files (Despues de las rutas de API dinamicas)
 app.use(express.static(path.join(__dirname, 'public')));
+
+// --- API RANGOS ---
+app.get('/api/rangos', async (req, res) => {
+    try {
+        const rangos = await getRangos();
+        res.json(rangos);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+app.post('/api/rangos', async (req, res) => {
+    try {
+        await createRango(req.body);
+        res.status(201).json({ ok: true });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+app.put('/api/rangos/:id', async (req, res) => {
+    try {
+        await updateRango(req.params.id, req.body);
+        res.json({ ok: true });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+app.delete('/api/rangos/:id', async (req, res) => {
+    try {
+        await deleteRango(req.params.id);
+        res.json({ ok: true });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
 
 app.get('/api/pedidos', async (req, res) => {
     try {
@@ -80,6 +135,26 @@ app.get('/api/pedidos/:id/lineas', async (req, res) => {
         res.json(lineas);
     } catch (err) {
         console.error(`Error en /api/pedidos/${req.params.id}/lineas:`, err.message);
+        res.status(500).json({ error: err.message });
+    }
+});
+
+app.get('/api/cobros', async (req, res) => {
+    try {
+        const cobros = await getAllCobros();
+        res.json(cobros);
+    } catch (err) {
+        console.error('Error en /api/cobros:', err.message);
+        res.status(500).json({ error: err.message });
+    }
+});
+
+app.get('/api/tracking', async (req, res) => {
+    try {
+        const tracking = await getTrackingLogs();
+        res.json(tracking);
+    } catch (err) {
+        console.error('Error en /api/tracking:', err.message);
         res.status(500).json({ error: err.message });
     }
 });

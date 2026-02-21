@@ -8,6 +8,9 @@
     "sync": "node syncOrders.js",
     "insert": "node insertOrder.js"
   },
+  "engines": {
+    "node": ">=18.0.0"
+  },
   "dependencies": {
     "axios": "^1.6.0",
     "cors": "^2.8.6",
