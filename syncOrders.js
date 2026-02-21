@@ -79,8 +79,21 @@ function log(msg) {
 }
 
 async function createSalesOrderHeader(token, pedido) {
-    const url = `${getBaseUrl()}SalesOrderHeadersV2`;
+    const baseUrl = getBaseUrl();
     const customerAccount = pedido.cliente_accountnum || pedido.cliente_rnc;
+
+    // Verificar en D365 si ya existe una OV con este número de pedido para evitar duplicados
+    if (pedido.pedido_numero) {
+        const checkUrl = `${baseUrl}SalesOrderHeadersV2?$filter=CustomerRequisitionNumber eq '${pedido.pedido_numero}' and dataAreaId eq 'maco'&$select=SalesOrderNumber,CustomerRequisitionNumber`;
+        const checkRes = await axios.get(checkUrl, {
+            headers: { 'Authorization': `Bearer ${token}`, 'Accept': 'application/json' }
+        });
+        if (checkRes.data.value.length > 0) {
+            const existingOV = checkRes.data.value[0].SalesOrderNumber;
+            log(`  [D365 DUPLICADO EVITADO] Ya existe ${existingOV} con pedido_numero=${pedido.pedido_numero}. Usando OV existente.`);
+            return existingOV;
+        }
+    }
 
     const headerData = {
         dataAreaId: 'maco',
@@ -88,6 +101,7 @@ async function createSalesOrderHeader(token, pedido) {
         InvoiceCustomerAccountNumber: customerAccount,
         CurrencyCode: 'DOP',
         RequestedShippingDate: new Date(pedido.fecha_pedido).toISOString().split('T')[0] + 'T12:00:00Z',
+        CustomerRequisitionNumber: pedido.pedido_numero,
     };
 
     if (pedido.vendedor_personnel_number) {
@@ -100,9 +114,9 @@ async function createSalesOrderHeader(token, pedido) {
         headerData.CustomersOrderReference = pedido.vendedor_nombre;
     }
 
-    log(`  Creando header -> Cliente: ${customerAccount} | Responsable: ${pedido.vendedor_personnel_number || '-'} | Secretario: ${pedido.secretario_personnel_number || '(mismo vendedor)'}`);
+    log(`  Creando header -> Cliente: ${customerAccount} | Pedido: ${pedido.pedido_numero} | Responsable: ${pedido.vendedor_personnel_number || '-'}`);
 
-    const response = await axios.post(url, headerData, {
+    const response = await axios.post(baseUrl + 'SalesOrderHeadersV2', headerData, {
         headers: {
             'Authorization': `Bearer ${token}`,
             'Content-Type': 'application/json',
