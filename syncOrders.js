@@ -193,11 +193,11 @@ async function processOrder(token, pedido) {
     }
     log(`  Líneas insertadas exitosamente.`);
 
-    // PATCH garantizado: espera 30s (D365 necesita procesar internamente) y luego
+    // PATCH garantizado: espera 10s (D365 necesita procesar internamente) y luego
     // sobrescribe el responsable y los campos de referencia ANTES de marcar como enviado.
     // Esto asegura que si el servidor se reinicia, el pedido no queda marcado como enviado
     // sin tener los datos correctos en D365.
-    await new Promise(resolve => setTimeout(resolve, 30000));
+    await new Promise(resolve => setTimeout(resolve, 10000));
 
     const patchUrl = `${getBaseUrl()}SalesOrderHeadersV2(dataAreaId='maco',SalesOrderNumber='${salesOrderNumber}')`;
     const patchData = {
