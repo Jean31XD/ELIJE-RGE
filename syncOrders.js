@@ -106,8 +106,6 @@ async function createSalesOrderHeader(token, pedido) {
 
     if (pedido.vendedor_personnel_number) {
         headerData.OrderResponsiblePersonnelNumber = pedido.vendedor_personnel_number;
-        // Si hay secretario asignado, él es quien toma el pedido; si no, cae en el vendedor
-        headerData.OrderTakerPersonnelNumber = pedido.secretario_personnel_number || pedido.vendedor_personnel_number;
     }
 
     if (pedido.vendedor_nombre) {
@@ -206,7 +204,6 @@ async function processOrder(token, pedido) {
     };
     if (pedido.vendedor_personnel_number) {
         patchData.OrderResponsiblePersonnelNumber = pedido.vendedor_personnel_number;
-        patchData.OrderTakerPersonnelNumber = pedido.secretario_personnel_number || pedido.vendedor_personnel_number;
     }
 
     try {
