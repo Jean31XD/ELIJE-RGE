@@ -66,7 +66,6 @@ const API_USER_PERSONNEL = '40226548424'; // Personnel number del usuario API (e
             const patchUrl = `${base}SalesOrderHeadersV2(dataAreaId='maco',SalesOrderNumber='${row.dynamics_order_number}')`;
             await axios.patch(patchUrl, {
                 OrderResponsiblePersonnelNumber: row.vendedor_personnel_number,
-                OrderTakerPersonnelNumber: row.secretario_personnel_number || row.vendedor_personnel_number,
                 CustomerRequisitionNumber: row.pedido_numero,
                 CustomersOrderReference: row.vendedor_nombre,
             }, {
