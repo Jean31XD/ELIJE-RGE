@@ -101,15 +101,10 @@ async function createSalesOrderHeader(token, pedido) {
         InvoiceCustomerAccountNumber: customerAccount,
         CurrencyCode: 'DOP',
         RequestedShippingDate: new Date(pedido.fecha_pedido).toISOString().split('T')[0] + 'T12:00:00Z',
-        CustomerRequisitionNumber: pedido.pedido_numero,
     };
 
     if (pedido.vendedor_personnel_number) {
         headerData.OrderResponsiblePersonnelNumber = pedido.vendedor_personnel_number;
-    }
-
-    if (pedido.vendedor_nombre) {
-        headerData.CustomersOrderReference = pedido.vendedor_nombre;
     }
 
     log(`  Creando header -> Cliente: ${customerAccount} | Pedido: ${pedido.pedido_numero} | Responsable: ${pedido.vendedor_personnel_number || '-'}`);
@@ -198,10 +193,7 @@ async function processOrder(token, pedido) {
     await new Promise(resolve => setTimeout(resolve, 10000));
 
     const patchUrl = `${getBaseUrl()}SalesOrderHeadersV2(dataAreaId='maco',SalesOrderNumber='${salesOrderNumber}')`;
-    const patchData = {
-        CustomerRequisitionNumber: pedido.pedido_numero,
-        CustomersOrderReference: pedido.vendedor_nombre,
-    };
+    const patchData = {};
     if (pedido.vendedor_personnel_number) {
         patchData.OrderResponsiblePersonnelNumber = pedido.vendedor_personnel_number;
     }
@@ -214,7 +206,7 @@ async function processOrder(token, pedido) {
                 'Accept': 'application/json'
             }
         });
-        log(`  [PATCH OK] Resp: ${pedido.vendedor_personnel_number || '-'} | CRN: "${pedido.pedido_numero}" | Ref: "${pedido.vendedor_nombre}"`);
+        log(`  [PATCH OK] Resp: ${pedido.vendedor_personnel_number || '-'}`);
     } catch (patchErr) {
         log(`  [PATCH ERROR] ${patchErr.message} (el pedido se marcará como enviado de todas formas)`);
     }
