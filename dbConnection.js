@@ -59,6 +59,16 @@ async function ensureColumnExists() {
             ALTER TABLE [dbo].[pedidos] ADD sync_error NVARCHAR(MAX) NULL;
         END
     `);
+    // Columna para el secretario de ventas asignado al vendedor
+    await db.request().query(`
+        IF NOT EXISTS (
+            SELECT 1 FROM INFORMATION_SCHEMA.COLUMNS
+            WHERE TABLE_NAME = 'vendedor_dynamics_map' AND COLUMN_NAME = 'secretario_personnel_number'
+        )
+        BEGIN
+            ALTER TABLE [dbo].[vendedor_dynamics_map] ADD secretario_personnel_number NVARCHAR(50) NULL;
+        END
+    `);
 }
 
 async function getAllOrders() {
@@ -82,6 +92,7 @@ async function getPendingOrders() {
                p.cliente_cuenta as pedido_cliente_cuenta,
                p.dynamics_order_number,
                m.personnel_number AS vendedor_personnel_number,
+               m.secretario_personnel_number AS secretario_personnel_number,
                COALESCE(NULLIF(LTRIM(RTRIM(p.cliente_cuenta)), ''), c.accountnum, ct.accountnum) AS cliente_accountnum
         FROM [dbo].[pedidos] p
         LEFT JOIN [dbo].[vendedor_dynamics_map] m
@@ -109,6 +120,7 @@ async function getOrderById(pedidoId) {
                    p.cliente_cuenta as pedido_cliente_cuenta,
                    p.dynamics_order_number,
                    m.personnel_number AS vendedor_personnel_number,
+                   m.secretario_personnel_number AS secretario_personnel_number,
                    COALESCE(NULLIF(LTRIM(RTRIM(p.cliente_cuenta)), ''), c.accountnum, ct.accountnum) AS cliente_accountnum
             FROM [dbo].[pedidos] p
             LEFT JOIN [dbo].[vendedor_dynamics_map] m
