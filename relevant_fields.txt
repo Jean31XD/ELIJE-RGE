@@ -1,0 +1,19 @@
+ArePricesIncludingSalesTax: Yes
+CommissionSalesRepresentativeGroupId: 
+EUSalesListCode: IncludeNot
+IsSalesProcessingStopped: No
+OrderResponsiblePersonnelNumber: 01600167157
+OrderTakerPersonnelNumber: 01600167157
+OverrideSalesTax: No
+SalesOrderName: JOSE ALTAGRACIA HIRALDO ULLOA
+SalesOrderNumber: OV000000003
+SalesOrderOriginCode: 
+SalesOrderPoolId: 
+SalesOrderProcessingStatus: Invoiced
+SalesOrderPromisingMethod: None
+SalesOrderStatus: Invoiced
+SalesRebateCustomerGroupId: 
+SalesTaxGroupCode: LOCAL
+SalesUnitId: 
+ThirdPartySalesDigitalPlatform: No
+ThirdPartySalesDigitalPlatformCNPJ: 
