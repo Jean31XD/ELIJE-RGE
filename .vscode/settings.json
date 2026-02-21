@@ -1,0 +1,8 @@
+{
+    "appService.zipIgnorePattern": [
+        "node_modules{,/**}",
+        ".vscode{,/**}"
+    ],
+    "appService.defaultWebAppToDeploy": "/subscriptions/acbdda28-3e1b-4b8d-84b4-c2c88a8e4f77/resourceGroups/rg-apptransportistas-MACO/providers/Microsoft.Web/sites/Catalogodeproductos",
+    "appService.deploySubpath": "."
+}

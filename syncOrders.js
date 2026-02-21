@@ -92,6 +92,7 @@ async function createSalesOrderHeader(token, pedido) {
 
     if (pedido.vendedor_personnel_number) {
         headerData.OrderResponsiblePersonnelNumber = pedido.vendedor_personnel_number;
+        headerData.SalesResponsiblePersonnelNumber = pedido.vendedor_personnel_number;
         // Si hay secretario asignado, él es quien toma el pedido; si no, cae en el vendedor
         headerData.OrderTakerPersonnelNumber = pedido.secretario_personnel_number || pedido.vendedor_personnel_number;
     }
@@ -236,6 +237,7 @@ async function pollCycle() {
                         const patchUrl = `${getBaseUrl()}SalesOrderHeadersV2(dataAreaId='maco',SalesOrderNumber='${salesOrderNumber}')`;
                         await axios.patch(patchUrl, {
                             OrderResponsiblePersonnelNumber: pedido.vendedor_personnel_number,
+                            SalesResponsiblePersonnelNumber: pedido.vendedor_personnel_number,
                             OrderTakerPersonnelNumber: pedido.secretario_personnel_number || pedido.vendedor_personnel_number,
                             CustomerRequisitionNumber: pedido.pedido_numero,
                         }, {
@@ -250,7 +252,7 @@ async function pollCycle() {
                             headers: { 'Authorization': `Bearer ${freshToken}`, 'Accept': 'application/json' }
                         });
                         const saved = verifyRes.data;
-                        log(`  [PATCH] ${salesOrderNumber} -> enviado: ${pedido.vendedor_personnel_number} | D365 guardó: ${saved.OrderResponsiblePersonnelNumber} | CRN: "${saved.CustomerRequisitionNumber}"`);
+                        log(`  [PATCH] ${salesOrderNumber} -> enviado: ${pedido.vendedor_personnel_number} | OrderResp: ${saved.OrderResponsiblePersonnelNumber} | SalesResp: ${saved.SalesResponsiblePersonnelNumber} | CRN: "${saved.CustomerRequisitionNumber}"`);
                     }
                 } catch (err) {
                     log(`  [PATCH] Error: ${err.message}`);
