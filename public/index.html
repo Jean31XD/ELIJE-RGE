@@ -12,6 +12,9 @@
         integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
         integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css" />
+    <script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
 </head>
 
 <body>
@@ -445,7 +448,7 @@
 
             <!-- Filtros -->
             <section class="filters-bar">
-                <div class="filter-group" style="min-width: 200px;">
+                <div class="filter-group" style="min-width:200px;">
                     <label>Vendedor</label>
                     <select id="filtroVendedorTracking" onchange="aplicarFiltrosTracking()">
                         <option value="todos">Todos los vendedores</option>
@@ -472,67 +475,64 @@
                 <button class="btn btn-ghost" onclick="limpiarFiltrosTracking()">Limpiar</button>
             </section>
 
-            <!-- Barra inferior: stats + última actualización + centrar mapa -->
-            <div class="tracking-infobar">
-                <div id="tracking-stats-bar" class="tracking-stats"></div>
-                <div class="tracking-meta">
-                    <span id="trackingLastUpdated"></span>
-                    <button id="btnCentrarMapa" onclick="centrarMapa()" class="btn-centrar hidden">Centrar mapa</button>
+            <!-- Workspace: Mapa + Panel lateral -->
+            <div class="trk-workspace">
+
+                <!-- Panel del mapa -->
+                <div class="trk-map-panel">
+                    <div id="tracking-map"></div>
+                    <!-- Controles flotantes sobre el mapa -->
+                    <div class="trk-map-fab">
+                        <button id="btnCentrarMapa" onclick="centrarMapa()" class="trk-fab-btn hidden">Centrar</button>
+                    </div>
+                </div>
+
+                <!-- Panel lateral -->
+                <div class="trk-side-panel">
+
+                    <!-- KPIs -->
+                    <div class="trk-summary-card">
+                        <div class="trk-summary-header">
+                            <span class="trk-section-label">Resumen</span>
+                            <span id="trackingLastUpdated" class="trk-updated"></span>
+                        </div>
+                        <div id="tracking-summary" class="trk-kpis"></div>
+                    </div>
+
+                    <!-- Lista de eventos -->
+                    <div class="trk-list-card">
+                        <div class="trk-list-header">
+                            <span class="trk-section-label">Registros</span>
+                            <span id="tracking-list-count" class="trk-list-count"></span>
+                        </div>
+                        <div id="tracking-event-list" class="trk-event-list">
+                            <div id="tracking-loading" class="loading-state hidden">
+                                <div class="spinner"></div>
+                                <p>Consultando registros...</p>
+                            </div>
+                        </div>
+                    </div>
+
                 </div>
             </div>
-
-            <!-- Mapa -->
-            <div class="tracking-map-wrapper">
-                <div id="map"></div>
-            </div>
-
-            <!-- Tabla -->
-            <section class="table-card tracking-table-card">
-                <div class="table-wrapper">
-                    <table>
-                        <thead>
-                            <tr>
-                                <th>Vendedor</th>
-                                <th>Tipo</th>
-                                <th>Orden de Venta</th>
-                                <th>Coordenadas</th>
-                                <th>Fecha / Hora</th>
-                            </tr>
-                        </thead>
-                        <tbody id="tracking-body"></tbody>
-                    </table>
-                </div>
-                <div id="tracking-loading" class="loading-state hidden">
-                    <div class="spinner"></div>
-                    <p>Consultando registros...</p>
-                </div>
-                <div id="tracking-empty" class="empty-state hidden">
-                    <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#cbd5e1" stroke-width="1.5">
-                        <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path>
-                        <circle cx="12" cy="10" r="3"></circle>
-                    </svg>
-                    <p>No hay registros para el período seleccionado</p>
-                </div>
-            </section>
-            <div id="tracking-pagination-container" class="pagination-bar tracking-pagination"></div>
         </div>
 
-        <!-- Modal Detalle OV (desde Tracking) -->
+        <!-- Modal Detalle OV -->
         <div id="modal-ov-tracking" class="modal hidden">
             <div class="modal-content modal-wide">
                 <div class="modal-header">
                     <div>
-                        <p style="font-size:11px;font-weight:500;color:var(--text-secondary);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:2px;">Orden de Venta</p>
-                        <h2 id="modal-ov-titulo" style="font-size:20px;"></h2>
+                        <p class="modal-ov-label">Orden de Venta</p>
+                        <h2 id="modal-ov-titulo"></h2>
                     </div>
                     <button class="btn-close" onclick="cerrarDetalleOV()">&times;</button>
                 </div>
-                <div id="modal-ov-header" style="padding: 20px 28px; border-bottom: 1px solid var(--border); background: #f8fafc;"></div>
+                <div id="modal-ov-header" class="modal-ov-header-data"></div>
                 <div id="modal-ov-loading" class="loading-state">
                     <div class="spinner"></div>
                     <p>Cargando detalle...</p>
                 </div>
-                <div id="modal-ov-body" style="max-height: 420px; overflow-y: auto;"></div>
+                <div id="modal-ov-body" class="modal-ov-body-scroll"></div>
             </div>
         </div>
         </div>

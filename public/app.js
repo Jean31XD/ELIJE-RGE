@@ -27,13 +27,15 @@ let trackingMarkers = [];
 let trackingPolyline = null;
 let todosLosTracking = [];
 let trackingFiltrados = [];
-let trackingPaginaActual = 1;
-let trackingRegistrosPorPagina = 20;
 let trackAutoRefresh = null;
 let trackCountdownInterval = null;
 let mapBoundsLocked = false;
 let _suppressMapLock = false;
 let trackingLastUpdated = null;
+let trackingClusterGroup = null;
+let trackingMarkerMap = {};
+let vendedorColorMap = {};
+let vendedorColorIndex = 0;
 
 // === Inicializacion ===
 window.addEventListener('DOMContentLoaded', () => {
@@ -1423,9 +1425,54 @@ function limpiarFiltrosCobros() {
 }
 
 // === Tracking ===
+
+const VENDOR_COLORS = ['#2563eb','#dc2626','#16a34a','#d97706','#7c3aed','#0891b2','#db2777','#059669','#b45309','#0369a1'];
+
+function getVendedorColor(vendedorId) {
+    if (!vendedorColorMap[vendedorId]) {
+        vendedorColorMap[vendedorId] = VENDOR_COLORS[vendedorColorIndex % VENDOR_COLORS.length];
+        vendedorColorIndex++;
+    }
+    return vendedorColorMap[vendedorId];
+}
+
+const _tileProviders = () => ({
+    'Claro':       L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png',
+                    { attribution: '© OpenStreetMap © CARTO', maxZoom: 19 }),
+    'Calles':      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+                    { attribution: '© OpenStreetMap contributors', maxZoom: 19 }),
+    'Satélite':    L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+                    { attribution: 'Tiles © Esri', maxZoom: 19 }),
+    'Oscuro':      L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',
+                    { attribution: '© OpenStreetMap © CARTO', maxZoom: 19 }),
+    'Topográfico': L.tileLayer('https://tile.opentopomap.org/{z}/{x}/{y}.png',
+                    { attribution: '© OpenTopoMap', maxZoom: 17 })
+});
+
+function initTrackingMap() {
+    if (trackingMap) return;
+
+    const providers = _tileProviders();
+    const defaultLayer = providers['Claro'];
+
+    trackingMap = L.map('tracking-map', {
+        zoomControl: false,
+        center: [18.4861, -69.9312],
+        zoom: 12,
+        layers: [defaultLayer]
+    });
+
+    L.control.zoom({ position: 'bottomright' }).addTo(trackingMap);
+    L.control.layers(providers, null, { position: 'topright', collapsed: false }).addTo(trackingMap);
+
+    trackingMap.on('movestart', () => {
+        if (_suppressMapLock) return;
+        mapBoundsLocked = true;
+        document.getElementById('btnCentrarMapa')?.classList.remove('hidden');
+    });
+}
+
 async function cargarTracking(isAutoRefresh = false) {
-    const loading = document.getElementById('tracking-loading');
-    const empty = document.getElementById('tracking-empty');
     const today = new Date().toISOString().split('T')[0];
 
     const desdeEl = document.getElementById('filtroDesdeTracking');
@@ -1434,25 +1481,11 @@ async function cargarTracking(isAutoRefresh = false) {
     if (hastaEl && !hastaEl.value) hastaEl.value = today;
 
     if (!isAutoRefresh) {
-        document.getElementById('tracking-body').innerHTML = '';
-        loading.classList.remove('hidden');
-        empty.classList.add('hidden');
+        document.getElementById('tracking-event-list').innerHTML = '<div class="loading-state">Cargando registros...</div>';
         mapBoundsLocked = false;
     }
 
-    if (!trackingMap) {
-        trackingMap = L.map('map', { zoomControl: true }).setView([18.4861, -69.9312], 12);
-        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-            attribution: '© OpenStreetMap contributors',
-            maxZoom: 19
-        }).addTo(trackingMap);
-
-        trackingMap.on('movestart', () => {
-            if (_suppressMapLock) return;
-            mapBoundsLocked = true;
-            document.getElementById('btnCentrarMapa')?.classList.remove('hidden');
-        });
-    }
+    initTrackingMap();
 
     try {
         const params = new URLSearchParams();
@@ -1462,8 +1495,6 @@ async function cargarTracking(isAutoRefresh = false) {
         const res = await fetch(`/api/tracking?${params.toString()}`);
         if (!res.ok) throw new Error('Error al cargar datos de tracking');
         todosLosTracking = await res.json();
-
-        if (!isAutoRefresh) loading.classList.add('hidden');
 
         trackingLastUpdated = new Date();
         actualizarIndicadorTiempo();
@@ -1483,17 +1514,11 @@ async function cargarTracking(isAutoRefresh = false) {
             select.value = vendedorActual || 'todos';
         }
 
-        if (todosLosTracking.length === 0 && !isAutoRefresh) {
-            empty.classList.remove('hidden');
-            renderEstadisticasTracking([]);
-            return;
-        }
-
         aplicarFiltrosTracking(isAutoRefresh);
 
     } catch (err) {
         if (!isAutoRefresh) {
-            loading.innerHTML = `<p style="color:var(--danger);padding:16px;">Error: ${err.message}</p>`;
+            document.getElementById('tracking-event-list').innerHTML = `<div class="trk-empty" style="color:var(--danger);">Error: ${escapeHtml(err.message)}</div>`;
         }
         console.error(err);
     }
@@ -1526,150 +1551,178 @@ function centrarMapa() {
 }
 
 function fitBoundsTracking() {
-    if (!trackingMap || trackingMarkers.length === 0) return;
+    if (!trackingMap) return;
+    const markersArr = Object.values(trackingMarkerMap);
+    if (markersArr.length === 0) return;
     _suppressMapLock = true;
-    const group = new L.featureGroup(trackingMarkers);
+    const group = new L.featureGroup(markersArr);
     trackingMap.fitBounds(group.getBounds().pad(0.12));
     trackingMap.once('moveend', () => { _suppressMapLock = false; });
 }
 
-function renderEstadisticasTracking(datos) {
-    const bar = document.getElementById('tracking-stats-bar');
-    if (!bar) return;
-    if (datos.length === 0) { bar.innerHTML = ''; return; }
+const _actionStyle = {
+    ORDER:    { bg: '#f0fdf4', color: '#166534', border: '#bbf7d0', dot: '#16a34a', label: 'Pedido' },
+    CHECKIN:  { bg: '#eff6ff', color: '#1d4ed8', border: '#bfdbfe', dot: '#2563eb', label: 'Check-in' },
+    PERIODIC: { bg: '#f8fafc', color: '#64748b', border: '#e2e8f0', dot: '#94a3b8', label: 'Periódico' }
+};
 
-    const orders = datos.filter(t => t.action === 'ORDER').length;
+function renderSummaryPanel(datos) {
+    const el = document.getElementById('tracking-summary');
+    if (!el) return;
+    if (datos.length === 0) { el.innerHTML = '<div class="trk-empty">Sin datos</div>'; return; }
+
+    const orders   = datos.filter(t => t.action === 'ORDER').length;
     const checkins = datos.filter(t => t.action === 'CHECKIN').length;
-    const periodicos = datos.filter(t => t.action === 'PERIODIC').length;
     const vendedores = new Set(datos.map(t => t.vendedor_id)).size;
 
-    bar.innerHTML = `
-        <span class="stat-chip">${datos.length} registros</span>
-        <span class="stat-chip stat-chip-order">${orders} pedido${orders !== 1 ? 's' : ''}</span>
-        <span class="stat-chip stat-chip-checkin">${checkins} check-in${checkins !== 1 ? 's' : ''}</span>
-        <span class="stat-chip stat-chip-periodic">${periodicos} periódico${periodicos !== 1 ? 's' : ''}</span>
-        <span class="stat-chip stat-chip-vendor">${vendedores} vendedor${vendedores !== 1 ? 'es' : ''}</span>
+    el.innerHTML = `
+        <div class="trk-kpi"><span class="trk-kpi-val">${datos.length}</span><span class="trk-kpi-lbl">Total</span></div>
+        <div class="trk-kpi"><span class="trk-kpi-val" style="color:#16a34a;">${orders}</span><span class="trk-kpi-lbl">Pedidos</span></div>
+        <div class="trk-kpi"><span class="trk-kpi-val" style="color:#2563eb;">${checkins}</span><span class="trk-kpi-lbl">Check-ins</span></div>
+        <div class="trk-kpi"><span class="trk-kpi-val" style="color:#7c3aed;">${vendedores}</span><span class="trk-kpi-lbl">Vendedores</span></div>
     `;
 }
 
-const _actionStyle = {
-    ORDER:    { bg: '#f0fdf4', color: '#166534', border: '#bbf7d0', dot: '#16a34a' },
-    CHECKIN:  { bg: '#eff6ff', color: '#1d4ed8', border: '#bfdbfe', dot: '#2563eb' },
-    PERIODIC: { bg: '#f8fafc', color: '#64748b', border: '#e2e8f0', dot: '#94a3b8' }
-};
+function renderEventList(datos) {
+    const el = document.getElementById('tracking-event-list');
+    const cntEl = document.getElementById('tracking-list-count');
+    if (!el) return;
 
-function renderTablaTracking(datos) {
-    const body = document.getElementById('tracking-body');
+    if (cntEl) cntEl.textContent = datos.length ? `${datos.length} registros` : '';
 
     if (datos.length === 0) {
-        body.innerHTML = '<tr><td colspan="5" style="text-align:center;padding:40px;color:var(--text-secondary);">No hay registros para el período seleccionado</td></tr>';
-        renderizarPaginacionTracking(0);
-        renderEstadisticasTracking([]);
+        el.innerHTML = '<div class="trk-empty">Sin registros para el período</div>';
         return;
     }
 
-    const totalPaginas = Math.ceil(datos.length / trackingRegistrosPorPagina);
-    const inicio = (trackingPaginaActual - 1) * trackingRegistrosPorPagina;
-    const datosPagina = datos.slice(inicio, inicio + trackingRegistrosPorPagina);
-
-    body.innerHTML = datosPagina.map(t => {
+    el.innerHTML = datos.map((t, i) => {
+        const as = _actionStyle[t.action] || _actionStyle.PERIODIC;
+        const color = getVendedorColor(t.vendedor_id);
         const fecha = t.created_at
-            ? new Date(t.created_at).toLocaleString('es-DO', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })
+            ? new Date(t.created_at).toLocaleString('es-DO', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })
             : '—';
 
-        const as = _actionStyle[t.action] || _actionStyle.PERIODIC;
-        const actionBadge = `<span class="tracking-action-badge" style="background:${as.bg};color:${as.color};border-color:${as.border};">${escapeHtml(t.action)}</span>`;
-
-        let ovCell;
+        let ovHtml = '';
         if (t.dynamics_order_number && t.pedido_id) {
-            ovCell = `<a href="#" class="ov-link" onclick="abrirDetalleOV(${t.pedido_id},'${escapeHtml(t.dynamics_order_number)}');return false;">${escapeHtml(t.dynamics_order_number)}</a>`;
+            ovHtml = `<a href="#" class="trk-ov-link" onclick="abrirDetalleOV(${t.pedido_id},'${escapeHtml(t.dynamics_order_number)}');return false;">${escapeHtml(t.dynamics_order_number)}</a>`;
         } else if (t.dynamics_order_number) {
-            ovCell = `<span class="dynamics-num">${escapeHtml(t.dynamics_order_number)}</span>`;
-        } else {
-            ovCell = '<span style="color:var(--text-secondary);">—</span>';
+            ovHtml = `<span class="trk-ov-static">${escapeHtml(t.dynamics_order_number)}</span>`;
         }
 
-        const coordCell = (t.latitude && t.longitude)
-            ? `<a href="https://www.google.com/maps?q=${t.latitude},${t.longitude}" target="_blank" class="coord-link">${parseFloat(t.latitude).toFixed(4)}, ${parseFloat(t.longitude).toFixed(4)}</a>`
-            : '—';
+        const hasMap = t.latitude && t.longitude;
 
         return `
-            <tr>
-                <td>
-                    <div style="font-weight:600;">${escapeHtml(t.vendedor_nombre)}</div>
-                    <div class="text-muted" style="font-size:11px;">ID: ${escapeHtml(t.vendedor_id)}</div>
-                </td>
-                <td>${actionBadge}</td>
-                <td>${ovCell}</td>
-                <td>${coordCell}</td>
-                <td style="white-space:nowrap;color:var(--text-secondary);font-size:13px;">${fecha}</td>
-            </tr>
+            <div class="trk-event${hasMap ? '' : ' trk-event--nomap'}" data-trk-id="${t.id}" onclick="focusTrackingMarker('${t.id}')">
+                <div class="trk-event-dot-col">
+                    <div class="trk-event-dot" style="background:${as.dot};"></div>
+                    ${i < datos.length - 1 ? '<div class="trk-event-line"></div>' : ''}
+                </div>
+                <div class="trk-event-body">
+                    <div class="trk-event-top">
+                        <span class="trk-event-badge" style="background:${as.bg};color:${as.color};border-color:${as.border};">${as.label}</span>
+                        <span class="trk-event-time">${fecha}</span>
+                    </div>
+                    <div class="trk-event-vendor" style="color:${color};">${escapeHtml(t.vendedor_nombre)}</div>
+                    ${ovHtml ? `<div class="trk-event-ov">${ovHtml}</div>` : ''}
+                </div>
+            </div>
         `;
     }).join('');
-
-    renderizarPaginacionTracking(totalPaginas);
-    renderEstadisticasTracking(datos);
 }
 
-function renderMarcadoresTracking(datos) {
-    trackingMarkers.forEach(m => { if (trackingMap.hasLayer(m)) trackingMap.removeLayer(m); });
+function focusTrackingMarker(trackingId) {
+    const marker = trackingMarkerMap[trackingId];
+    if (!marker || !trackingMap) return;
+    mapBoundsLocked = true;
+    document.getElementById('btnCentrarMapa')?.classList.remove('hidden');
+    trackingMap.setView(marker.getLatLng(), Math.max(trackingMap.getZoom(), 15), { animate: true });
+    marker.openPopup();
+}
+
+function renderMarcadoresTracking(datos, vendedorFiltro) {
+    if (trackingClusterGroup) {
+        trackingMap.removeLayer(trackingClusterGroup);
+        trackingClusterGroup = null;
+    }
+    Object.values(trackingMarkerMap).forEach(m => {
+        if (trackingMap.hasLayer(m)) trackingMap.removeLayer(m);
+    });
+    trackingMarkerMap = {};
     trackingMarkers = [];
     if (trackingPolyline) { trackingMap.removeLayer(trackingPolyline); trackingPolyline = null; }
 
-    const markerStyle = {
-        ORDER:    { fillColor: '#16a34a', radius: 10, weight: 2 },
-        CHECKIN:  { fillColor: '#2563eb', radius: 7,  weight: 2 },
-        PERIODIC: { fillColor: '#94a3b8', radius: 4,  weight: 1 }
-    };
+    const markerSize = { ORDER: 11, CHECKIN: 8, PERIODIC: 5 };
+    const usarCluster = vendedorFiltro === 'todos' && datos.length > 30
+        && typeof L.markerClusterGroup !== 'undefined';
+
+    const clusterGroup = usarCluster ? L.markerClusterGroup({
+        iconCreateFunction: (cluster) => L.divIcon({
+            html: `<div class="trk-cluster">${cluster.getChildCount()}</div>`,
+            className: '',
+            iconSize: [36, 36]
+        }),
+        maxClusterRadius: 50,
+        showCoverageOnHover: false
+    }) : null;
 
     const coordsRuta = [];
 
     datos.forEach(t => {
         if (!t.latitude || !t.longitude) return;
 
-        const ms = markerStyle[t.action] || markerStyle.PERIODIC;
-        const marker = L.circleMarker([t.latitude, t.longitude], {
-            radius: ms.radius,
-            fillColor: ms.fillColor,
-            color: '#ffffff',
-            weight: ms.weight,
-            opacity: 1,
-            fillOpacity: 0.92
-        }).addTo(trackingMap);
-
-        const fecha = new Date(t.created_at).toLocaleString('es-DO', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' });
+        const color = getVendedorColor(t.vendedor_id);
+        const r = markerSize[t.action] || 5;
         const as = _actionStyle[t.action] || _actionStyle.PERIODIC;
 
+        const marker = L.circleMarker([t.latitude, t.longitude], {
+            radius: r,
+            fillColor: vendedorFiltro === 'todos' ? color : as.dot,
+            color: '#ffffff',
+            weight: 2,
+            opacity: 1,
+            fillOpacity: 0.9
+        });
+
+        const fecha = new Date(t.created_at).toLocaleString('es-DO', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' });
         const ovPopupLine = t.dynamics_order_number
             ? (t.pedido_id
-                ? `<div style="margin-top:8px;"><a href="#" onclick="trackingMap.closePopup();abrirDetalleOV(${t.pedido_id},'${escapeHtml(t.dynamics_order_number)}');return false;" style="font-size:12px;font-weight:600;color:var(--primary);text-decoration:none;">Ver OV ${escapeHtml(t.dynamics_order_number)}</a></div>`
+                ? `<div style="margin-top:8px;"><a href="#" onclick="trackingMap.closePopup();abrirDetalleOV(${t.pedido_id},'${escapeHtml(t.dynamics_order_number)}');return false;" style="font-size:12px;font-weight:600;color:#2563eb;text-decoration:none;">Ver OV ${escapeHtml(t.dynamics_order_number)}</a></div>`
                 : `<div style="margin-top:6px;font-size:12px;font-weight:600;color:#166534;">OV: ${escapeHtml(t.dynamics_order_number)}</div>`)
             : '';
 
         marker.bindPopup(`
             <div style="font-family:'Inter',sans-serif;min-width:180px;line-height:1.6;">
-                <div style="font-weight:700;font-size:13px;color:var(--text);">${escapeHtml(t.vendedor_nombre)}</div>
+                <div style="font-weight:700;font-size:13px;">${escapeHtml(t.vendedor_nombre)}</div>
                 <div style="margin-top:4px;">
-                    <span style="display:inline-block;padding:2px 8px;border-radius:4px;font-size:10px;font-weight:600;letter-spacing:0.3px;background:${as.bg};color:${as.color};border:1px solid ${as.border};">${escapeHtml(t.action)}</span>
+                    <span style="display:inline-block;padding:2px 8px;border-radius:4px;font-size:10px;font-weight:600;background:${as.bg};color:${as.color};border:1px solid ${as.border};">${as.label}</span>
                 </div>
                 ${ovPopupLine}
                 <div style="margin-top:6px;font-size:11px;color:#64748b;">${fecha}</div>
                 <div style="margin-top:6px;border-top:1px solid #f1f5f9;padding-top:6px;">
-                    <a href="https://www.google.com/maps?q=${t.latitude},${t.longitude}" target="_blank" style="font-size:11px;color:var(--primary);text-decoration:none;">Ver en Google Maps</a>
+                    <a href="https://www.google.com/maps?q=${t.latitude},${t.longitude}" target="_blank" style="font-size:11px;color:#2563eb;text-decoration:none;">Ver en Google Maps</a>
                 </div>
             </div>
         `, { maxWidth: 220 });
 
+        trackingMarkerMap[t.id] = marker;
         trackingMarkers.push(marker);
         coordsRuta.push([t.latitude, t.longitude]);
+
+        if (usarCluster) clusterGroup.addLayer(marker);
+        else marker.addTo(trackingMap);
     });
 
-    const vendedorId = document.getElementById('filtroVendedorTracking').value;
-    if (vendedorId !== 'todos' && coordsRuta.length >= 2) {
+    if (usarCluster && clusterGroup) {
+        clusterGroup.addTo(trackingMap);
+        trackingClusterGroup = clusterGroup;
+    }
+
+    if (vendedorFiltro !== 'todos' && coordsRuta.length >= 2) {
+        const vendColor = vendedorColorMap[vendedorFiltro] || '#2563eb';
         trackingPolyline = L.polyline(coordsRuta, {
-            color: '#2563eb',
+            color: vendColor,
             weight: 2.5,
-            opacity: 0.65,
+            opacity: 0.6,
             dashArray: '6, 8',
             lineJoin: 'round'
         }).addTo(trackingMap);
@@ -1688,33 +1741,14 @@ function aplicarFiltrosTracking(isAutoRefresh = false) {
         return true;
     });
 
-    const datosOrdenados = [...trackingFiltrados].sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
+    const datosOrdenados = [...trackingFiltrados].sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+    const datosParaMapa = [...trackingFiltrados].sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
 
-    if (!isAutoRefresh) trackingPaginaActual = 1;
-    renderTablaTracking(trackingFiltrados);
-    renderMarcadoresTracking(datosOrdenados);
+    renderSummaryPanel(trackingFiltrados);
+    renderEventList(datosOrdenados);
+    renderMarcadoresTracking(datosParaMapa, vendedorId);
 
     if (!mapBoundsLocked) fitBoundsTracking();
-}
-
-function cambiarPaginaTracking(pagina) {
-    const totalPaginas = Math.ceil(trackingFiltrados.length / trackingRegistrosPorPagina);
-    if (pagina < 1 || pagina > totalPaginas) return;
-    trackingPaginaActual = pagina;
-    renderTablaTracking(trackingFiltrados);
-}
-
-function renderizarPaginacionTracking(totalPaginas) {
-    const container = document.getElementById('tracking-pagination-container');
-    if (!container) return;
-    if (totalPaginas <= 1) { container.innerHTML = ''; return; }
-    container.innerHTML = `
-        <div class="pagination-controls">
-            <button onclick="cambiarPaginaTracking(${trackingPaginaActual - 1})" ${trackingPaginaActual === 1 ? 'disabled' : ''}>Anterior</button>
-            <span>Página ${trackingPaginaActual} de ${totalPaginas}</span>
-            <button onclick="cambiarPaginaTracking(${trackingPaginaActual + 1})" ${trackingPaginaActual === totalPaginas ? 'disabled' : ''}>Siguiente</button>
-        </div>
-    `;
 }
 
 // === Detalle de OV desde Tracking ===
