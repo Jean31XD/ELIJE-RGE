@@ -78,6 +78,8 @@ app.get('/api/dashboard', async (req, res) => {
         const filters = {};
         if (req.query.vendedor) filters.vendedor = req.query.vendedor;
         if (req.query.cliente) filters.cliente = req.query.cliente;
+        if (req.query.desde) filters.desde = req.query.desde;
+        if (req.query.hasta) filters.hasta = req.query.hasta;
         const data = await getDashboardData(filters);
         res.json(data);
     } catch (err) {

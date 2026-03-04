@@ -216,6 +216,14 @@ async function getDashboardData(filters = {}) {
         conditions.push("cliente_nombre LIKE '%' + @cliente + '%'");
         request.input('cliente', filters.cliente);
     }
+    if (filters.desde) {
+        conditions.push("CONVERT(DATE, fecha_pedido) >= @desde");
+        request.input('desde', filters.desde);
+    }
+    if (filters.hasta) {
+        conditions.push("CONVERT(DATE, fecha_pedido) <= @hasta");
+        request.input('hasta', filters.hasta);
+    }
 
     const whereClause = conditions.length > 0 ? 'WHERE ' + conditions.join(' AND ') : '';
     const andClause = conditions.length > 0 ? ' AND ' + conditions.join(' AND ') : '';
@@ -230,6 +238,14 @@ async function getDashboardData(filters = {}) {
     if (filters.cliente) {
         catConditions.push("p.cliente_nombre LIKE '%' + @cliente + '%'");
         catRequest.input('cliente', filters.cliente);
+    }
+    if (filters.desde) {
+        catConditions.push("CONVERT(DATE, p.fecha_pedido) >= @desde");
+        catRequest.input('desde', filters.desde);
+    }
+    if (filters.hasta) {
+        catConditions.push("CONVERT(DATE, p.fecha_pedido) <= @hasta");
+        catRequest.input('hasta', filters.hasta);
     }
     const catWhereClause = catConditions.length > 0 ? 'WHERE ' + catConditions.join(' AND ') : '';
 
@@ -256,34 +272,44 @@ async function getDashboardData(filters = {}) {
             FROM [dbo].[pedidos]
             ${whereClause}
         `),
-        // Tendencia diaria (30 dias)
+        // Tendencia diaria (30 dias o rango filtrado)
         (function () {
             const r = db.request();
             if (filters.vendedor) r.input('vendedor', filters.vendedor);
             if (filters.cliente) r.input('cliente', filters.cliente);
+            if (filters.desde) r.input('desde', filters.desde);
+            if (filters.hasta) r.input('hasta', filters.hasta);
+            const dailyCond = filters.desde || filters.hasta
+                ? conditions.join(' AND ')
+                : `fecha_pedido >= DATEADD(DAY, -30, GETDATE())` + (conditions.length ? ' AND ' + conditions.join(' AND ') : '');
             return r.query(`
                 SELECT
                     CONVERT(VARCHAR(10), fecha_pedido, 120) AS fecha,
                     COUNT(*) AS cantidad,
                     ISNULL(SUM(total), 0) AS monto
                 FROM [dbo].[pedidos]
-                WHERE fecha_pedido >= DATEADD(DAY, -30, GETDATE()) ${andClause}
+                ${dailyCond ? 'WHERE ' + dailyCond : ''}
                 GROUP BY CONVERT(VARCHAR(10), fecha_pedido, 120)
                 ORDER BY fecha ASC
             `);
         })(),
-        // Tendencia mensual (12 meses)
+        // Tendencia mensual (12 meses o rango filtrado)
         (function () {
             const r = db.request();
             if (filters.vendedor) r.input('vendedor', filters.vendedor);
             if (filters.cliente) r.input('cliente', filters.cliente);
+            if (filters.desde) r.input('desde', filters.desde);
+            if (filters.hasta) r.input('hasta', filters.hasta);
+            const monthlyCond = filters.desde || filters.hasta
+                ? conditions.join(' AND ')
+                : `fecha_pedido >= DATEADD(MONTH, -12, GETDATE())` + (conditions.length ? ' AND ' + conditions.join(' AND ') : '');
             return r.query(`
                 SELECT
                     FORMAT(fecha_pedido, 'yyyy-MM') AS mes,
                     COUNT(*) AS cantidad,
                     ISNULL(SUM(total), 0) AS monto
                 FROM [dbo].[pedidos]
-                WHERE fecha_pedido >= DATEADD(MONTH, -12, GETDATE()) ${andClause}
+                ${monthlyCond ? 'WHERE ' + monthlyCond : ''}
                 GROUP BY FORMAT(fecha_pedido, 'yyyy-MM')
                 ORDER BY mes ASC
             `);

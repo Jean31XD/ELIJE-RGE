@@ -198,8 +198,6 @@ function renderizarKpisPedidos() {
     const errores = base.filter(p => p.sync_error && !p.enviado_dynamics).length;
     const pendientes = base.filter(p => !p.enviado_dynamics && !p.sync_error).length;
 
-    document.getElementById('btn-reintentar-errores')?.classList.toggle('hidden', errores === 0);
-
     const kpisEl = document.getElementById('pedidos-kpis');
     if (!kpisEl) return;
     kpisEl.innerHTML = `
@@ -1135,6 +1133,8 @@ async function cargarDashboard(filters = {}) {
         const params = new URLSearchParams();
         if (filters.vendedor) params.set('vendedor', filters.vendedor);
         if (filters.cliente) params.set('cliente', filters.cliente);
+        if (filters.desde) params.set('desde', filters.desde);
+        if (filters.hasta) params.set('hasta', filters.hasta);
 
         const url = '/api/dashboard' + (params.toString() ? '?' + params.toString() : '');
         const res = await fetch(url);
@@ -1153,14 +1153,20 @@ async function cargarDashboard(filters = {}) {
 function aplicarFiltrosDashboard() {
     const vendedor = document.getElementById('dashFiltroVendedor')?.value || '';
     const cliente = document.getElementById('dashFiltroCliente')?.value || '';
-    cargarDashboard({ vendedor, cliente });
+    const desde = document.getElementById('dashDesde')?.value || '';
+    const hasta = document.getElementById('dashHasta')?.value || '';
+    cargarDashboard({ vendedor, cliente, desde, hasta });
 }
 
 function limpiarFiltrosDashboard() {
     const v = document.getElementById('dashFiltroVendedor');
     const c = document.getElementById('dashFiltroCliente');
+    const d = document.getElementById('dashDesde');
+    const h = document.getElementById('dashHasta');
     if (v) v.value = '';
     if (c) c.value = '';
+    if (d) d.value = '';
+    if (h) h.value = '';
     cargarDashboard();
 }
 
@@ -1177,7 +1183,7 @@ function renderDashboard(data, filters = {}) {
     const greeting = hour < 12 ? 'Buenos dias' : hour < 18 ? 'Buenas tardes' : 'Buenas noches';
     const dateStr = new Date().toLocaleDateString('es-DO', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
 
-    const hasFilters = filters.vendedor || filters.cliente;
+    const hasFilters = filters.vendedor || filters.cliente || filters.desde || filters.hasta;
 
     // Build dropdown options
     const vendedorOpts = (dashFilterOptions?.vendedores || []).map(v =>
@@ -1213,6 +1219,14 @@ function renderDashboard(data, filters = {}) {
                         <option value="">Todos los clientes</option>
                         ${clienteOpts}
                     </select>
+                </div>
+                <div class="dash-filter-group">
+                    <label>Desde</label>
+                    <input type="date" id="dashDesde" value="${filters.desde || ''}" onchange="aplicarFiltrosDashboard()">
+                </div>
+                <div class="dash-filter-group">
+                    <label>Hasta</label>
+                    <input type="date" id="dashHasta" value="${filters.hasta || ''}" onchange="aplicarFiltrosDashboard()">
                 </div>
                 <button class="btn btn-ghost btn-sm" onclick="limpiarFiltrosDashboard()" ${!hasFilters ? 'disabled' : ''}>Limpiar</button>
                 ${hasFilters ? '<span class="dash-filter-active">Filtros activos</span>' : ''}
