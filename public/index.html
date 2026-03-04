@@ -122,6 +122,9 @@
         <!-- Vista Lista de Pedidos -->
         <div id="vista-lista" class="hidden">
 
+            <!-- KPI Bar -->
+            <div id="pedidos-kpis" class="ped-kpis"></div>
+
             <!-- Filtros -->
             <section class="filters-bar">
                 <div class="search-box">
@@ -140,14 +143,23 @@
                     <input type="date" id="fechaHasta">
                 </div>
                 <div class="filter-group">
+                    <label>Vendedor</label>
+                    <select id="filtroVendedor" onchange="aplicarFiltros()">
+                        <option value="todos">Todos</option>
+                    </select>
+                </div>
+                <div class="filter-group">
                     <label>Estado</label>
                     <select id="filtroEstado">
                         <option value="todos">Todos</option>
                         <option value="pendiente">Pendientes</option>
-                        <option value="enviado">Enviados a Dynamics</option>
+                        <option value="error">Con Error</option>
+                        <option value="enviado">Enviados</option>
                     </select>
                 </div>
                 <button class="btn btn-ghost" onclick="limpiarFiltros()">Limpiar</button>
+                <button id="btn-reintentar-errores" class="btn btn-warning hidden" onclick="reintentarTodosErrores()">Reintentar errores</button>
+                <button class="btn btn-ghost" onclick="exportarCSVPedidos()">Exportar CSV</button>
             </section>
 
             <!-- Tabla Principal -->
@@ -156,12 +168,12 @@
                     <table>
                         <thead>
                             <tr>
-                                <th>Pedido</th>
-                                <th>Cliente</th>
+                                <th class="sortable" data-col="pedido_numero">Pedido <span class="sort-icon"></span></th>
+                                <th class="sortable" data-col="cliente_nombre">Cliente <span class="sort-icon"></span></th>
                                 <th>RNC</th>
-                                <th>Vendedor</th>
-                                <th>Fecha</th>
-                                <th class="text-right">Total</th>
+                                <th class="sortable" data-col="vendedor_nombre">Vendedor <span class="sort-icon"></span></th>
+                                <th class="sortable" data-col="fecha_pedido">Fecha <span class="sort-icon"></span></th>
+                                <th class="sortable text-right" data-col="total">Total <span class="sort-icon"></span></th>
                                 <th class="text-center">Estado</th>
                                 <th class="text-center">Dynamics</th>
                                 <th></th>
@@ -539,13 +551,18 @@
 
         <!-- Vista Detalle -->
         <div id="vista-detalle" class="hidden">
-            <button class="btn btn-back" onclick="cerrarDetalle()">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <line x1="19" y1="12" x2="5" y2="12" />
-                    <polyline points="12 19 5 12 12 5" />
-                </svg>
-                Volver al listado
-            </button>
+            <!-- Barra de navegación -->
+            <div class="detail-nav">
+                <button class="btn btn-ghost" onclick="cerrarDetalle()">← Volver</button>
+                <div class="detail-nav-center">
+                    <button class="btn btn-ghost btn-sm" onclick="navegarDetalle(-1)" id="btn-prev-detalle">‹</button>
+                    <span id="detail-nav-pos" class="detail-nav-pos"></span>
+                    <button class="btn btn-ghost btn-sm" onclick="navegarDetalle(1)" id="btn-next-detalle">›</button>
+                </div>
+                <button id="btn-retry-detalle" class="btn btn-warning hidden" onclick="reintentarDesdeDetalle()">
+                    Reintentar Dynamics
+                </button>
+            </div>
 
             <!-- Info del pedido -->
             <div class="detail-header" id="detail-header-info"></div>
@@ -577,6 +594,8 @@
         </div>
 
     </main>
+
+    <div id="toast-container" class="toast-container"></div>
 
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
     <script src="app.js"></script>

@@ -3,6 +3,10 @@ let pedidoActual = null;
 let pedidosFiltrados = [];
 let paginaActual = 1;
 let registrosPorPagina = 20;
+let pedidoSortCol = 'fecha_pedido';
+let pedidoSortDir = 'desc';
+let pedidoAutoRefresh = null;
+let pedidoIndexDetalle = -1;
 
 const formatter = new Intl.NumberFormat('es-DO', {
     style: 'currency',
@@ -46,6 +50,11 @@ window.addEventListener('DOMContentLoaded', () => {
     document.getElementById('fechaDesde').addEventListener('change', aplicarFiltros);
     document.getElementById('fechaHasta').addEventListener('change', aplicarFiltros);
     document.getElementById('filtroEstado').addEventListener('change', aplicarFiltros);
+
+    // Sort headers
+    document.querySelectorAll('th.sortable[data-col]').forEach(th => {
+        th.addEventListener('click', () => sortarPedidos(th.dataset.col));
+    });
 
     // Filtros de Cobros
     const searchCobros = document.getElementById('searchCobros');
@@ -126,12 +135,74 @@ async function cargarPedidos() {
         if (!res.ok) throw new Error('Error del servidor');
         todosLosPedidos = await res.json();
         loader.classList.add('hidden');
+        poblarVendedores();
         aplicarFiltros();
+        renderizarKpisPedidos();
         checkHealth();
     } catch (error) {
         loader.innerHTML = '<p style="color: var(--danger);">Error de conexion con la base de datos</p>';
         console.error(error);
     }
+}
+
+async function cargarPedidosSilencioso() {
+    try {
+        const res = await fetch('/api/pedidos');
+        if (!res.ok) return;
+        const nuevos = await res.json();
+        const hashNuevos = nuevos.map(p => p.pedido_id + p.enviado_dynamics + (p.sync_error || '')).join('|');
+        const hashActual = todosLosPedidos.map(p => p.pedido_id + p.enviado_dynamics + (p.sync_error || '')).join('|');
+        if (hashNuevos !== hashActual) {
+            todosLosPedidos = nuevos;
+            poblarVendedores();
+            aplicarFiltros();
+            renderizarKpisPedidos();
+        }
+    } catch {}
+}
+
+function poblarVendedores() {
+    const select = document.getElementById('filtroVendedor');
+    if (!select) return;
+    const valorActual = select.value;
+    const vendedores = [...new Set(todosLosPedidos.map(p => p.vendedor_nombre).filter(Boolean))].sort();
+    select.innerHTML = '<option value="todos">Todos</option>' +
+        vendedores.map(v => `<option value="${escapeHtml(v)}">${escapeHtml(v)}</option>`).join('');
+    if (vendedores.includes(valorActual)) select.value = valorActual;
+}
+
+function renderizarKpisPedidos() {
+    const estadoActivo = document.getElementById('filtroEstado')?.value || 'todos';
+    const total      = todosLosPedidos.length;
+    const enviados   = todosLosPedidos.filter(p => p.enviado_dynamics).length;
+    const errores    = todosLosPedidos.filter(p => p.sync_error && !p.enviado_dynamics).length;
+    const pendientes = todosLosPedidos.filter(p => !p.enviado_dynamics && !p.sync_error).length;
+
+    document.getElementById('btn-reintentar-errores')?.classList.toggle('hidden', errores === 0);
+
+    const kpisEl = document.getElementById('pedidos-kpis');
+    if (!kpisEl) return;
+    kpisEl.innerHTML = `
+        <button class="ped-kpi ${estadoActivo === 'todos' ? 'active' : ''}" onclick="filtrarPorEstado('todos')">
+            <span class="ped-kpi-val">${total}</span><span class="ped-kpi-lbl">Total</span>
+        </button>
+        <button class="ped-kpi ped-kpi--warning ${estadoActivo === 'pendiente' ? 'active' : ''}" onclick="filtrarPorEstado('pendiente')">
+            <span class="ped-kpi-val">${pendientes}</span><span class="ped-kpi-lbl">Pendientes</span>
+        </button>
+        <button class="ped-kpi ped-kpi--danger ${estadoActivo === 'error' ? 'active' : ''}" onclick="filtrarPorEstado('error')">
+            <span class="ped-kpi-val">${errores}</span><span class="ped-kpi-lbl">Con Error</span>
+        </button>
+        <button class="ped-kpi ped-kpi--success ${estadoActivo === 'enviado' ? 'active' : ''}" onclick="filtrarPorEstado('enviado')">
+            <span class="ped-kpi-val">${enviados}</span><span class="ped-kpi-lbl">Enviados</span>
+        </button>
+    `;
+}
+
+function filtrarPorEstado(estado) {
+    const sel = document.getElementById('filtroEstado');
+    if (sel) sel.value = estado;
+    aplicarFiltros();
+    renderizarKpisPedidos();
 }
 
 // === Filtros ===
@@ -140,6 +211,7 @@ function aplicarFiltros() {
     const desde = document.getElementById('fechaDesde').value;
     const hasta = document.getElementById('fechaHasta').value;
     const estado = document.getElementById('filtroEstado').value;
+    const vendedor = document.getElementById('filtroVendedor')?.value || 'todos';
 
     pedidosFiltrados = todosLosPedidos.filter(p => {
         // Texto
@@ -153,15 +225,47 @@ function aplicarFiltros() {
         if (desde && fecha < desde) return false;
         if (hasta && fecha > hasta) return false;
 
+        // Vendedor
+        if (vendedor !== 'todos' && p.vendedor_nombre !== vendedor) return false;
+
         // Estado
-        if (estado === 'pendiente' && p.enviado_dynamics) return false;
+        if (estado === 'pendiente' && (p.enviado_dynamics || p.sync_error)) return false;
         if (estado === 'enviado' && !p.enviado_dynamics) return false;
+        if (estado === 'error' && !(p.sync_error && !p.enviado_dynamics)) return false;
 
         return true;
     });
 
+    // Ordenar
+    pedidosFiltrados.sort((a, b) => {
+        let va = a[pedidoSortCol] ?? '', vb = b[pedidoSortCol] ?? '';
+        if (pedidoSortCol === 'total') { va = +va; vb = +vb; }
+        const cmp = va < vb ? -1 : va > vb ? 1 : 0;
+        return pedidoSortDir === 'asc' ? cmp : -cmp;
+    });
+
     paginaActual = 1;
     renderizarPagina();
+    actualizarSortHeaders();
+}
+
+function sortarPedidos(col) {
+    if (pedidoSortCol === col) {
+        pedidoSortDir = pedidoSortDir === 'asc' ? 'desc' : 'asc';
+    } else {
+        pedidoSortCol = col;
+        pedidoSortDir = col === 'total' ? 'desc' : 'asc';
+    }
+    aplicarFiltros();
+}
+
+function actualizarSortHeaders() {
+    document.querySelectorAll('th.sortable[data-col]').forEach(th => {
+        th.classList.remove('sort-asc', 'sort-desc');
+        if (th.dataset.col === pedidoSortCol) {
+            th.classList.add(pedidoSortDir === 'asc' ? 'sort-asc' : 'sort-desc');
+        }
+    });
 }
 
 function renderizarPagina() {
@@ -270,7 +374,6 @@ function renderizarTabla(datos) {
 
         let estadoClass = 'status-pendiente';
         let estadoText = 'Pendiente';
-        let tooltip = '';
 
         if (p.enviado_dynamics) {
             estadoClass = 'status-enviado';
@@ -278,11 +381,15 @@ function renderizarTabla(datos) {
         } else if (p.sync_error) {
             estadoClass = 'status-error';
             estadoText = 'Error Sync';
-            tooltip = p.sync_error;
         }
 
-        const dynamicsCol = p.dynamics_order_number
-            ? `<span class="dynamics-num">${escapeHtml(p.dynamics_order_number)}</span>`
+        const errorSnippet = p.sync_error
+            ? `<div class="error-snippet">${escapeHtml(p.sync_error.substring(0, 80))}${p.sync_error.length > 80 ? '…' : ''}</div>`
+            : '';
+
+        const ovCol = p.dynamics_order_number
+            ? `<span class="dynamics-num">${escapeHtml(p.dynamics_order_number)}</span>
+               <button class="copy-btn" title="Copiar" onclick="copiarAlPortapapeles('${escapeHtml(p.dynamics_order_number)}',event)">⎘</button>`
             : '<span style="color: var(--text-secondary);">-</span>';
 
         const retryBtn = (!p.enviado_dynamics)
@@ -292,7 +399,7 @@ function renderizarTabla(datos) {
             : '';
 
         return `
-            <tr id="pedido-row-${p.pedido_id}">
+            <tr id="pedido-row-${p.pedido_id}" class="clickable-row" onclick="verDetalle(${p.pedido_id})">
                 <td><span class="pedido-num">${escapeHtml(p.pedido_numero)}</span></td>
                 <td>${escapeHtml(p.cliente_nombre)}</td>
                 <td>${escapeHtml(p.cliente_rnc || '-')}</td>
@@ -300,10 +407,11 @@ function renderizarTabla(datos) {
                 <td>${fecha}</td>
                 <td class="text-right"><span class="money">${formatter.format(p.total)}</span></td>
                 <td class="text-center">
-                    <span class="status ${estadoClass}" title="${escapeHtml(tooltip)}">${estadoText}</span>
+                    <span class="status ${estadoClass}">${estadoText}</span>
+                    ${errorSnippet}
                 </td>
-                <td class="text-center">${dynamicsCol}</td>
-                <td style="white-space: nowrap;">
+                <td class="text-center">${ovCol}</td>
+                <td style="white-space: nowrap;" onclick="event.stopPropagation()">
                     <div style="display: flex; gap: 4px; justify-content: flex-end;">
                         ${retryBtn}
                         <button class="btn btn-primary btn-sm" onclick="verDetalle(${p.pedido_id})">
@@ -338,12 +446,12 @@ async function reintentarPedido(event, pedidoId) {
 
         if (!res.ok) throw new Error(data.error || 'Error al procesar pedido');
 
-        // Notificar éxito visualmente
+        showToast(`Pedido enviado correctamente`, 'success');
         btn.innerHTML = '✅';
         setTimeout(() => {
             btn.innerHTML = originalContent;
             btn.disabled = false;
-            cargarPedidos(); // Recargar lista para ver cambios
+            cargarPedidosSilencioso();
         }, 1500);
 
     } catch (error) {
@@ -352,12 +460,12 @@ async function reintentarPedido(event, pedidoId) {
         if (error.message.includes('Failed to fetch') || error.message.includes('NetworkError')) {
             userMsg = 'Error de conexión con el servidor. El proceso podría seguir en curso en segundo plano.';
         }
-        alert('Error: ' + userMsg);
+        showToast('Error: ' + userMsg, 'error');
         btn.innerHTML = '❌';
         setTimeout(() => {
             btn.innerHTML = originalContent;
             btn.disabled = false;
-            cargarPedidos();
+            cargarPedidosSilencioso();
         }, 2000);
     }
 }
@@ -367,10 +475,26 @@ async function verDetalle(pedidoId) {
     pedidoActual = todosLosPedidos.find(p => p.pedido_id === pedidoId);
     if (!pedidoActual) return;
 
+    // Índice en pedidosFiltrados para prev/next
+    pedidoIndexDetalle = pedidosFiltrados.findIndex(p => p.pedido_id === pedidoId);
+
     // Mostrar vista detalle
     document.getElementById('vista-lista').classList.add('hidden');
     document.getElementById('vista-detalle').classList.remove('hidden');
     document.getElementById('page-title').textContent = `Pedido ${pedidoActual.pedido_numero}`;
+
+    // Navegación prev/next
+    const btnPrev = document.getElementById('btn-prev-detalle');
+    const btnNext = document.getElementById('btn-next-detalle');
+    const navPos  = document.getElementById('detail-nav-pos');
+    if (btnPrev) btnPrev.disabled = pedidoIndexDetalle <= 0;
+    if (btnNext) btnNext.disabled = pedidoIndexDetalle >= pedidosFiltrados.length - 1;
+    if (navPos)  navPos.textContent = pedidosFiltrados.length > 0
+        ? `${pedidoIndexDetalle + 1} / ${pedidosFiltrados.length}` : '';
+
+    // Botón retry en detalle
+    const retryBtn = document.getElementById('btn-retry-detalle');
+    if (retryBtn) retryBtn.classList.toggle('hidden', !(pedidoActual.sync_error && !pedidoActual.enviado_dynamics));
 
     // Header info
     const headerEl = document.getElementById('detail-header-info');
@@ -481,6 +605,55 @@ function cerrarDetalle() {
     document.getElementById('vista-detalle').classList.add('hidden');
     document.getElementById('page-title').textContent = 'Pedidos';
     pedidoActual = null;
+    pedidoIndexDetalle = -1;
+}
+
+function navegarDetalle(dir) {
+    const nuevoIdx = pedidoIndexDetalle + dir;
+    if (nuevoIdx < 0 || nuevoIdx >= pedidosFiltrados.length) return;
+    verDetalle(pedidosFiltrados[nuevoIdx].pedido_id);
+}
+
+async function reintentarDesdeDetalle() {
+    if (!pedidoActual) return;
+    const btn = document.getElementById('btn-retry-detalle');
+    btn.disabled = true;
+    btn.textContent = 'Procesando...';
+    try {
+        const res = await fetch(`/api/pedidos/${pedidoActual.pedido_id}/retry`, { method: 'POST' });
+        let data = {};
+        const ct = res.headers.get('content-type');
+        if (ct && ct.includes('application/json')) data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Error al procesar');
+        showToast(`Pedido enviado: ${data.salesOrderNumber || pedidoActual.pedido_numero}`, 'success');
+        await cargarPedidosSilencioso();
+        // Refrescar pedidoActual desde el array actualizado
+        const id = pedidoActual.pedido_id;
+        pedidoActual = todosLosPedidos.find(p => p.pedido_id === id);
+        if (pedidoActual) verDetalle(id);
+    } catch (err) {
+        showToast(err.message, 'error');
+        btn.disabled = false;
+        btn.textContent = 'Reintentar Dynamics';
+    }
+}
+
+async function reintentarTodosErrores() {
+    const conError = todosLosPedidos.filter(p => p.sync_error && !p.enviado_dynamics);
+    if (conError.length === 0) return;
+    showToast(`Reintentando ${conError.length} pedido(s) con error...`, 'info');
+    let ok = 0, fail = 0;
+    for (const p of conError) {
+        try {
+            const res = await fetch(`/api/pedidos/${p.pedido_id}/retry`, { method: 'POST' });
+            if (res.ok) ok++;
+            else fail++;
+        } catch { fail++; }
+        await new Promise(r => setTimeout(r, 2000));
+    }
+    showToast(`Reintentos completados: ${ok} OK, ${fail} fallidos`, ok > 0 ? 'success' : 'error');
+    await cargarPedidosSilencioso();
+    renderizarKpisPedidos();
 }
 
 // === Limpiar Filtros ===
@@ -489,7 +662,12 @@ function limpiarFiltros() {
     document.getElementById('fechaDesde').value = '';
     document.getElementById('fechaHasta').value = '';
     document.getElementById('filtroEstado').value = 'todos';
+    const filtroVendedor = document.getElementById('filtroVendedor');
+    if (filtroVendedor) filtroVendedor.value = 'todos';
+    pedidoSortCol = 'fecha_pedido';
+    pedidoSortDir = 'desc';
     aplicarFiltros();
+    renderizarKpisPedidos();
 }
 
 // === Navegacion ===
@@ -513,6 +691,10 @@ function switchView(view) {
         document.getElementById('page-title').textContent = 'Pedidos';
         document.getElementById('contador').classList.remove('hidden');
         if (todosLosPedidos.length === 0) cargarPedidos();
+        else renderizarKpisPedidos();
+        if (!pedidoAutoRefresh) {
+            pedidoAutoRefresh = setInterval(cargarPedidosSilencioso, 60000);
+        }
     } else if (view === 'sync') {
         document.getElementById('vista-dynamics').classList.remove('hidden');
         document.getElementById('page-title').textContent = 'Dynamics 365 - Mapeo de Campos';
@@ -551,6 +733,10 @@ function switchView(view) {
     if (view !== 'tracking') {
         if (trackAutoRefresh) { clearInterval(trackAutoRefresh); trackAutoRefresh = null; }
         if (trackCountdownInterval) { clearInterval(trackCountdownInterval); trackCountdownInterval = null; }
+    }
+    // Detener refresco de pedidos si se sale de la vista
+    if (view !== 'pedidos') {
+        if (pedidoAutoRefresh) { clearInterval(pedidoAutoRefresh); pedidoAutoRefresh = null; }
     }
 }
 
@@ -677,6 +863,47 @@ function renderizarPaginacionLogs(totalPaginas) {
             </div>
         </div>
     `;
+}
+
+// === Toast Notifications ===
+function showToast(msg, type = 'info', duration = 4000) {
+    const c = document.getElementById('toast-container');
+    if (!c) return;
+    const t = document.createElement('div');
+    t.className = `toast toast-${type}`;
+    t.textContent = msg;
+    c.appendChild(t);
+    setTimeout(() => t.classList.add('toast-out'), duration - 300);
+    setTimeout(() => t.remove(), duration);
+}
+
+function copiarAlPortapapeles(texto, event) {
+    if (event) event.stopPropagation();
+    navigator.clipboard.writeText(texto).then(() => showToast('Copiado', 'success', 2000));
+}
+
+// === Export CSV ===
+function exportarCSVPedidos() {
+    if (!pedidosFiltrados.length) { showToast('No hay pedidos para exportar', 'info'); return; }
+    const cols = ['pedido_numero', 'cliente_nombre', 'cliente_rnc', 'vendedor_nombre', 'fecha_pedido', 'total', 'estado', 'dynamics_order_number'];
+    const headers = ['Pedido', 'Cliente', 'RNC', 'Vendedor', 'Fecha', 'Total', 'Estado', 'Orden Dynamics'];
+    const rows = pedidosFiltrados.map(p => {
+        const estado = p.enviado_dynamics ? 'Enviado' : (p.sync_error ? 'Error' : 'Pendiente');
+        const fecha = p.fecha_pedido ? p.fecha_pedido.split('T')[0] : '';
+        return [
+            p.pedido_numero, p.cliente_nombre, p.cliente_rnc || '', p.vendedor_nombre,
+            fecha, p.total, estado, p.dynamics_order_number || ''
+        ].map(v => `"${String(v).replace(/"/g, '""')}"`).join(',');
+    });
+    const csv = [headers.join(','), ...rows].join('\r\n');
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `pedidos_export_${new Date().toISOString().split('T')[0]}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+    showToast(`Exportados ${pedidosFiltrados.length} pedidos`, 'success');
 }
 
 // === Dynamics 365 Campos ===
