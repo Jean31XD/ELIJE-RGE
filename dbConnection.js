@@ -328,18 +328,36 @@ async function getAllCobros() {
     return result.recordset;
 }
 
-async function getTrackingLogs() {
+async function getTrackingLogs(filters = {}) {
     const db = await getPool();
-    const result = await db.request().query(`
+    const req = db.request();
+
+    let whereClause = '1=1';
+
+    if (filters.fecha) {
+        whereClause += ` AND CAST(t.created_at AS DATE) = @fecha`;
+        req.input('fecha', sql.Date, new Date(filters.fecha));
+    }
+    if (filters.vendedor_id) {
+        whereClause += ` AND t.vendedor_id = @vendedorId`;
+        req.input('vendedorId', sql.VarChar(100), filters.vendedor_id);
+    }
+    if (filters.action) {
+        whereClause += ` AND t.[action] = @action`;
+        req.input('action', sql.VarChar(50), filters.action);
+    }
+
+    const result = await req.query(`
         SELECT t.id, t.vendedor_id, t.vendedor_nombre, t.latitude, t.longitude, t.[action], t.created_at,
-               (SELECT TOP 1 p.dynamics_order_number 
-                FROM [dbo].[pedidos] p 
-                WHERE p.vendedor_nombre = t.vendedor_nombre 
+               (SELECT TOP 1 p.dynamics_order_number
+                FROM [dbo].[pedidos] p
+                WHERE p.vendedor_nombre = t.vendedor_nombre
                 AND ABS(DATEDIFF(MINUTE, p.fecha_pedido, t.created_at)) < 15
                 AND t.[action] = 'ORDER'
                 ORDER BY ABS(DATEDIFF(SECOND, p.fecha_pedido, t.created_at))
                ) as dynamics_order_number
         FROM [dbo].[tracking_logs] t
+        WHERE ${whereClause}
         ORDER BY t.created_at DESC
     `);
     return result.recordset;

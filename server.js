@@ -155,7 +155,11 @@ app.get('/api/cobros', async (req, res) => {
 
 app.get('/api/tracking', async (req, res) => {
     try {
-        const tracking = await getTrackingLogs();
+        const filters = {};
+        if (req.query.fecha) filters.fecha = req.query.fecha;
+        if (req.query.vendedor_id) filters.vendedor_id = req.query.vendedor_id;
+        if (req.query.action) filters.action = req.query.action;
+        const tracking = await getTrackingLogs(filters);
         res.json(tracking);
     } catch (err) {
         console.error('Error en /api/tracking:', err.message);

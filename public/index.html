@@ -442,21 +442,19 @@
         </div>
 
         <div id="vista-tracking" class="hidden">
-            <div
-                style="padding: 0 32px 20px; display: flex; align-items: center; justify-content: space-between; gap: 20px; flex-wrap: wrap;">
-                <p style="color: var(--text-secondary); margin: 0; flex: 1;">Visualiza la ubicación y actividad reciente
-                    de los vendedores.</p>
-
-                <div style="display: flex; gap: 12px; flex-wrap: wrap;">
-                    <div class="filter-group" style="min-width: 250px;">
-                        <label>Filtrar por Vendedor</label>
+            <!-- Filtros -->
+            <div style="padding: 0 32px 16px; display: flex; align-items: flex-end; justify-content: space-between; gap: 20px; flex-wrap: wrap;">
+                <p style="color: var(--text-secondary); margin: 0; flex: 1; align-self: center;">Visualiza la ubicación y actividad reciente de los vendedores en tiempo real.</p>
+                <div style="display: flex; gap: 12px; flex-wrap: wrap; align-items: flex-end;">
+                    <div class="filter-group" style="min-width: 220px;">
+                        <label>Vendedor</label>
                         <select id="filtroVendedorTracking" onchange="aplicarFiltrosTracking()">
                             <option value="todos">Todos los vendedores</option>
                         </select>
                     </div>
                     <div class="filter-group">
                         <label>Fecha</label>
-                        <input type="date" id="filtroFechaTracking" onchange="aplicarFiltrosTracking()">
+                        <input type="date" id="filtroFechaTracking" onchange="cargarTracking()">
                     </div>
                     <div class="filter-group">
                         <label>Acción</label>
@@ -470,21 +468,33 @@
                 </div>
             </div>
 
+            <!-- Barra de estadísticas + última actualización -->
+            <div style="padding: 0 32px 16px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px;">
+                <div id="tracking-stats-bar" style="display: flex; gap: 8px; flex-wrap: wrap;"></div>
+                <div style="display: flex; align-items: center; gap: 10px;">
+                    <span id="trackingLastUpdated" style="font-size: 12px; color: var(--text-secondary);"></span>
+                    <button id="btnCentrarMapa" onclick="centrarMapa()" class="hidden"
+                        style="font-size: 12px; padding: 5px 14px; border: 1px solid var(--border); border-radius: 8px; background: white; color: var(--primary); cursor: pointer; font-weight: 500;">
+                        ⌖ Centrar mapa
+                    </button>
+                </div>
+            </div>
+
             <!-- Mapa -->
-            <section class="table-card"
-                style="margin-bottom: 24px; padding: 0; min-height: 400px; position: relative; z-index: 1;">
-                <div id="map" style="height: 450px; width: 100%;"></div>
+            <section class="table-card" style="margin: 0 32px 24px; padding: 0; position: relative; z-index: 1; border-radius: 12px; overflow: hidden; box-shadow: 0 2px 12px rgba(0,0,0,0.08);">
+                <div id="map" style="height: 520px; width: 100%;"></div>
             </section>
 
             <!-- Tabla de Logs de Tracking -->
-            <section class="table-card">
+            <section class="table-card" style="margin: 0 32px;">
                 <div class="table-wrapper">
                     <table>
                         <thead>
                             <tr>
                                 <th>Vendedor</th>
                                 <th>Acción</th>
-                                <th>Coordenadas</th>
+                                <th>OV Dynamics</th>
+                                <th>Ubicación</th>
                                 <th>Fecha/Hora</th>
                             </tr>
                         </thead>
@@ -503,7 +513,7 @@
                     <p>No hay registros de tracking disponibles</p>
                 </div>
             </section>
-            <div id="tracking-pagination-container" class="pagination-bar" style="margin-top: 20px;"></div>
+            <div id="tracking-pagination-container" class="pagination-bar" style="margin: 20px 32px 0;"></div>
         </div>
         </div>
 

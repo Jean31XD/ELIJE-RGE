@@ -30,6 +30,10 @@ let trackingFiltrados = [];
 let trackingPaginaActual = 1;
 let trackingRegistrosPorPagina = 20;
 let trackAutoRefresh = null;
+let trackCountdownInterval = null;
+let mapBoundsLocked = false;
+let _suppressMapLock = false;
+let trackingLastUpdated = null;
 
 // === Inicializacion ===
 window.addEventListener('DOMContentLoaded', () => {
@@ -534,14 +538,17 @@ function switchView(view) {
         cargarTracking();
         // Iniciar refresco automático cada 30s si no está activo
         if (!trackAutoRefresh) {
-            trackAutoRefresh = setInterval(cargarTracking, 30000);
+            trackAutoRefresh = setInterval(() => cargarTracking(true), 30000);
+        }
+        if (!trackCountdownInterval) {
+            trackCountdownInterval = setInterval(actualizarIndicadorTiempo, 5000);
         }
     }
 
     // Detener refresco de tracking si se sale de la vista
-    if (view !== 'tracking' && trackAutoRefresh) {
-        clearInterval(trackAutoRefresh);
-        trackAutoRefresh = null;
+    if (view !== 'tracking') {
+        if (trackAutoRefresh) { clearInterval(trackAutoRefresh); trackAutoRefresh = null; }
+        if (trackCountdownInterval) { clearInterval(trackCountdownInterval); trackCountdownInterval = null; }
     }
 }
 
@@ -1416,14 +1423,9 @@ function limpiarFiltrosCobros() {
 }
 
 // === Tracking ===
-async function cargarTracking() {
-    const body = document.getElementById('tracking-body');
+async function cargarTracking(isAutoRefresh = false) {
     const loading = document.getElementById('tracking-loading');
     const empty = document.getElementById('tracking-empty');
-
-    body.innerHTML = '';
-    loading.classList.remove('hidden');
-    empty.classList.add('hidden');
 
     // Inicializar fecha si está vacía
     const inputFecha = document.getElementById('filtroFechaTracking');
@@ -1431,54 +1433,120 @@ async function cargarTracking() {
         inputFecha.value = new Date().toISOString().split('T')[0];
     }
 
-    // Inicializar mapa si no existe
-    if (!trackingMap) {
-        // Centro en Santo Domingo por defecto
-        trackingMap = L.map('map').setView([18.4861, -69.9312], 12);
-        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-            attribution: '© OpenStreetMap contributors'
-        }).addTo(trackingMap);
+    // En carga manual mostramos spinner; en auto-refresh actualizamos silenciosamente
+    if (!isAutoRefresh) {
+        document.getElementById('tracking-body').innerHTML = '';
+        loading.classList.remove('hidden');
+        empty.classList.add('hidden');
+        mapBoundsLocked = false;
     }
 
-    // Limpiar marcadores previos
-    trackingMarkers.forEach(m => {
-        if (trackingMap.hasLayer(m)) trackingMap.removeLayer(m);
-    });
-    trackingMarkers = [];
+    // Inicializar mapa si no existe
+    if (!trackingMap) {
+        trackingMap = L.map('map', { zoomControl: true }).setView([18.4861, -69.9312], 12);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '© OpenStreetMap contributors',
+            maxZoom: 19
+        }).addTo(trackingMap);
+
+        // Detectar interacción manual del usuario con el mapa
+        trackingMap.on('movestart', () => {
+            if (_suppressMapLock) return;
+            mapBoundsLocked = true;
+            const btn = document.getElementById('btnCentrarMapa');
+            if (btn) btn.classList.remove('hidden');
+        });
+    }
 
     try {
-        const res = await fetch('/api/tracking');
+        const fecha = inputFecha ? inputFecha.value : '';
+        const url = fecha ? `/api/tracking?fecha=${fecha}` : '/api/tracking';
+        const res = await fetch(url);
         if (!res.ok) throw new Error('Error al cargar datos de tracking');
         todosLosTracking = await res.json();
 
-        loading.classList.add('hidden');
+        if (!isAutoRefresh) loading.classList.add('hidden');
 
-        if (todosLosTracking.length === 0) {
+        // Actualizar timestamp de última actualización
+        trackingLastUpdated = new Date();
+        actualizarIndicadorTiempo();
+
+        // Poblar selector de vendedores solo en carga manual para no interrumpir selección
+        if (!isAutoRefresh) {
+            const select = document.getElementById('filtroVendedorTracking');
+            const vendedorActual = select.value;
+            const vendedoresUnicos = [...new Set(todosLosTracking.map(t => `${t.vendedor_id}|${t.vendedor_nombre}`))];
+            select.innerHTML = '<option value="todos">Todos los vendedores</option>';
+            vendedoresUnicos.forEach(v => {
+                const [id, nombre] = v.split('|');
+                const opt = document.createElement('option');
+                opt.value = id;
+                opt.textContent = nombre;
+                select.appendChild(opt);
+            });
+            select.value = vendedorActual || 'todos';
+        }
+
+        if (todosLosTracking.length === 0 && !isAutoRefresh) {
             empty.classList.remove('hidden');
             return;
         }
 
-        // Poblar selector de vendedores
-        const select = document.getElementById('filtroVendedorTracking');
-        const vendedorActual = select.value;
-        const vendedoresUnicos = [...new Set(todosLosTracking.map(t => `${t.vendedor_id}|${t.vendedor_nombre}`))];
-
-        select.innerHTML = '<option value="todos">Todos los vendedores</option>';
-        vendedoresUnicos.forEach(v => {
-            const [id, nombre] = v.split('|');
-            const opt = document.createElement('option');
-            opt.value = id;
-            opt.textContent = nombre;
-            select.appendChild(opt);
-        });
-        select.value = vendedorActual || 'todos';
-
-        aplicarFiltrosTracking();
+        aplicarFiltrosTracking(isAutoRefresh);
 
     } catch (err) {
-        loading.innerHTML = `<p style="color: var(--danger);">Error: ${err.message}</p>`;
+        if (!isAutoRefresh) {
+            loading.innerHTML = `<p style="color: var(--danger);">Error: ${err.message}</p>`;
+        }
         console.error(err);
     }
+}
+
+function actualizarIndicadorTiempo() {
+    const el = document.getElementById('trackingLastUpdated');
+    if (!el || !trackingLastUpdated) return;
+    const diffSec = Math.floor((new Date() - trackingLastUpdated) / 1000);
+    if (diffSec < 10) el.textContent = 'Actualizado hace unos segundos';
+    else if (diffSec < 60) el.textContent = `Actualizado hace ${diffSec}s`;
+    else el.textContent = `Actualizado hace ${Math.floor(diffSec / 60)}min`;
+}
+
+function centrarMapa() {
+    mapBoundsLocked = false;
+    document.getElementById('btnCentrarMapa')?.classList.add('hidden');
+    if (trackingMarkers.length > 0) {
+        _suppressMapLock = true;
+        const group = new L.featureGroup(trackingMarkers);
+        trackingMap.fitBounds(group.getBounds().pad(0.1));
+        trackingMap.once('moveend', () => { _suppressMapLock = false; });
+    }
+}
+
+function fitBoundsTracking() {
+    if (!trackingMap || trackingMarkers.length === 0) return;
+    _suppressMapLock = true;
+    const group = new L.featureGroup(trackingMarkers);
+    trackingMap.fitBounds(group.getBounds().pad(0.1));
+    trackingMap.once('moveend', () => { _suppressMapLock = false; });
+}
+
+function renderEstadisticasTracking(datos) {
+    const bar = document.getElementById('tracking-stats-bar');
+    if (!bar) return;
+    if (datos.length === 0) { bar.innerHTML = ''; return; }
+
+    const orders = datos.filter(t => t.action === 'ORDER').length;
+    const checkins = datos.filter(t => t.action === 'CHECKIN').length;
+    const periodicos = datos.filter(t => t.action === 'PERIODIC').length;
+    const vendedores = new Set(datos.map(t => t.vendedor_id)).size;
+
+    bar.innerHTML = `
+        <span class="stat-chip">${datos.length} registros</span>
+        <span class="stat-chip stat-chip-order">🛒 ${orders} pedido${orders !== 1 ? 's' : ''}</span>
+        <span class="stat-chip stat-chip-checkin">✓ ${checkins} check-in${checkins !== 1 ? 's' : ''}</span>
+        <span class="stat-chip stat-chip-periodic">⏱ ${periodicos} periódico${periodicos !== 1 ? 's' : ''}</span>
+        <span class="stat-chip stat-chip-vendor">👤 ${vendedores} vendedor${vendedores !== 1 ? 'es' : ''}</span>
+    `;
 }
 
 function renderTablaTracking(datos) {
@@ -1486,137 +1554,140 @@ function renderTablaTracking(datos) {
     const total = datos.length;
 
     if (total === 0) {
-        body.innerHTML = '<tr><td colspan="4" class="text-center" style="padding: 32px; color: var(--text-secondary);">No hay registros disponibles para el filtro</td></tr>';
+        body.innerHTML = '<tr><td colspan="5" class="text-center" style="padding: 32px; color: var(--text-secondary);">No hay registros disponibles para el filtro seleccionado</td></tr>';
         renderizarPaginacionTracking(0);
+        renderEstadisticasTracking([]);
         return;
     }
 
     const totalPaginas = Math.ceil(total / trackingRegistrosPorPagina);
     const inicio = (trackingPaginaActual - 1) * trackingRegistrosPorPagina;
-    const fin = inicio + trackingRegistrosPorPagina;
-    const datosPagina = datos.slice(inicio, fin);
+    const datosPagina = datos.slice(inicio, inicio + trackingRegistrosPorPagina);
+
+    const actionStyle = {
+        ORDER:    { bg: '#f0fdf4', color: '#166534', border: '#bbf7d0' },
+        CHECKIN:  { bg: '#eff6ff', color: '#1d4ed8', border: '#bfdbfe' },
+        PERIODIC: { bg: '#f8fafc', color: '#64748b', border: '#e2e8f0' }
+    };
 
     body.innerHTML = datosPagina.map(t => {
         const fecha = t.created_at
-            ? new Date(t.created_at).toLocaleString('es-DO', {
-                day: '2-digit', month: 'short', year: 'numeric',
-                hour: '2-digit', minute: '2-digit'
-            })
+            ? new Date(t.created_at).toLocaleString('es-DO', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })
             : '-';
 
-        let actionClass = 'badge';
-        if (t.action === 'ORDER') actionClass += ' status-enviado';
-        else if (t.action === 'CHECKIN') actionClass += ' status-pendiente';
+        const as = actionStyle[t.action] || actionStyle.PERIODIC;
+        const actionBadge = `<span style="padding:3px 10px;border-radius:999px;font-size:10px;font-weight:600;background:${as.bg};color:${as.color};border:1px solid ${as.border};">${escapeHtml(t.action)}</span>`;
 
-        const ovHtml = t.dynamics_order_number
-            ? `<div style="margin-top: 4px;"><span class="badge" style="background: #f0fdf4; color: #166534; border: 1px solid #bbf7d0;">OV: ${t.dynamics_order_number}</span></div>`
-            : '';
+        const ovCell = t.dynamics_order_number
+            ? `<span style="padding:3px 10px;border-radius:6px;font-size:11px;font-weight:600;background:#f0fdf4;color:#166534;border:1px solid #bbf7d0;">📋 ${escapeHtml(t.dynamics_order_number)}</span>`
+            : '<span style="color:var(--text-secondary);">—</span>';
+
+        const coordCell = (t.latitude && t.longitude)
+            ? `<a href="https://www.google.com/maps?q=${t.latitude},${t.longitude}" target="_blank" style="color:var(--primary);font-size:12px;font-family:monospace;text-decoration:none;" title="Ver en Google Maps">📍 ${parseFloat(t.latitude).toFixed(5)}, ${parseFloat(t.longitude).toFixed(5)}</a>`
+            : '—';
 
         return `
             <tr>
                 <td>
-                    <div style="font-weight: 600;">${escapeHtml(t.vendedor_nombre)}</div>
-                    <div style="font-size: 11px; color: var(--text-secondary);">ID: ${escapeHtml(t.vendedor_id)}</div>
+                    <div style="font-weight:600;">${escapeHtml(t.vendedor_nombre)}</div>
+                    <div style="font-size:11px;color:var(--text-secondary);">ID: ${escapeHtml(t.vendedor_id)}</div>
                 </td>
-                <td>
-                    <span class="${actionClass}" style="font-size: 10px;">${escapeHtml(t.action)}</span>
-                    ${ovHtml}
-                </td>
-                <td style="font-family: monospace; font-size: 12px;">${t.latitude}, ${t.longitude}</td>
-                <td>${fecha}</td>
+                <td>${actionBadge}</td>
+                <td>${ovCell}</td>
+                <td>${coordCell}</td>
+                <td style="white-space:nowrap;">${fecha}</td>
             </tr>
         `;
     }).join('');
 
     renderizarPaginacionTracking(totalPaginas);
+    renderEstadisticasTracking(datos);
 }
 
 function renderMarcadoresTracking(datos) {
-    // Si hay una polilinea previa, quitarla
-    if (trackingPolyline) {
-        trackingMap.removeLayer(trackingPolyline);
-        trackingPolyline = null;
-    }
+    // Limpiar marcadores y polyline previos
+    trackingMarkers.forEach(m => { if (trackingMap.hasLayer(m)) trackingMap.removeLayer(m); });
+    trackingMarkers = [];
+    if (trackingPolyline) { trackingMap.removeLayer(trackingPolyline); trackingPolyline = null; }
+
+    const markerCfg = {
+        ORDER:    { bg: '#16a34a', border: '#14532d', icon: '🛒', size: 34 },
+        CHECKIN:  { bg: '#2563eb', border: '#1e3a8a', icon: '✓',  size: 28 },
+        PERIODIC: { bg: '#94a3b8', border: '#64748b', icon: '•',  size: 18 }
+    };
 
     const coordsRuta = [];
 
     datos.forEach(t => {
         if (!t.latitude || !t.longitude) return;
 
-        const color = t.action === 'ORDER' ? '#16a34a' : (t.action === 'CHECKIN' ? '#2563eb' : '#64748b');
+        const cfg = markerCfg[t.action] || markerCfg.PERIODIC;
+        const sz = cfg.size;
 
-        const marker = L.circleMarker([t.latitude, t.longitude], {
-            radius: 8,
-            fillColor: color,
-            color: '#fff',
-            weight: 2,
-            opacity: 1,
-            fillOpacity: 0.8
-        }).addTo(trackingMap);
+        const icon = L.divIcon({
+            className: '',
+            html: `<div style="width:${sz}px;height:${sz}px;background:${cfg.bg};border:2px solid ${cfg.border};border-radius:50%;display:flex;align-items:center;justify-content:center;color:white;font-size:${Math.round(sz * 0.42)}px;box-shadow:0 2px 8px rgba(0,0,0,0.35);cursor:pointer;">${cfg.icon}</div>`,
+            iconSize: [sz, sz],
+            iconAnchor: [sz / 2, sz / 2],
+            popupAnchor: [0, -(sz / 2 + 4)]
+        });
 
-        const fecha = new Date(t.created_at).toLocaleString('es-DO');
+        const marker = L.marker([t.latitude, t.longitude], { icon }).addTo(trackingMap);
+
+        const fecha = new Date(t.created_at).toLocaleString('es-DO', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' });
+        const ovLine = t.dynamics_order_number
+            ? `<div style="margin-top:6px;padding:4px 8px;background:#f0fdf4;border-radius:6px;font-size:11px;color:#166534;font-weight:600;border:1px solid #bbf7d0;">📋 OV: ${escapeHtml(t.dynamics_order_number)}</div>`
+            : '';
+
         marker.bindPopup(`
-            <div style="font-family: 'Inter', sans-serif;">
-                <b style="color: var(--primary);">${escapeHtml(t.vendedor_nombre)}</b><br>
-                <span class="badge" style="margin: 5px 0; font-size: 10px;">${escapeHtml(t.action)}</span><br>
-                <small style="color: var(--text-secondary);">${fecha}</small>
+            <div style="font-family:'Inter',sans-serif;min-width:190px;line-height:1.5;">
+                <div style="font-weight:700;font-size:13px;margin-bottom:4px;">${escapeHtml(t.vendedor_nombre)}</div>
+                <span style="padding:2px 10px;border-radius:999px;font-size:10px;font-weight:600;background:${cfg.bg};color:white;">${escapeHtml(t.action)}</span>
+                ${ovLine}
+                <div style="margin-top:6px;font-size:11px;color:#64748b;">🕐 ${fecha}</div>
+                <a href="https://www.google.com/maps?q=${t.latitude},${t.longitude}" target="_blank" style="display:inline-block;margin-top:6px;font-size:11px;color:#2563eb;text-decoration:none;font-weight:500;">📍 Ver en Google Maps</a>
             </div>
-        `);
+        `, { maxWidth: 240 });
 
         trackingMarkers.push(marker);
         coordsRuta.push([t.latitude, t.longitude]);
     });
 
-    // Dibujar ruta solo si se seleccionó un vendedor y hay al menos 2 puntos
+    // Ruta cronológica cuando se filtra por un vendedor específico
     const vendedorId = document.getElementById('filtroVendedorTracking').value;
     if (vendedorId !== 'todos' && coordsRuta.length >= 2) {
         trackingPolyline = L.polyline(coordsRuta, {
-            color: 'var(--primary)',
+            color: '#2563eb',
             weight: 3,
-            opacity: 0.6,
-            dashArray: '10, 10',
+            opacity: 0.7,
+            dashArray: '8, 8',
             lineJoin: 'round'
         }).addTo(trackingMap);
     }
 }
 
-function aplicarFiltrosTracking() {
+function aplicarFiltrosTracking(isAutoRefresh = false) {
+    if (!trackingMap) return;
+
     const vendedorId = document.getElementById('filtroVendedorTracking').value;
-    const fechaFiltro = document.getElementById('filtroFechaTracking').value;
     const accionFiltro = document.getElementById('filtroAccionTracking').value;
 
-    // Limpiar marcadores previos
-    trackingMarkers.forEach(m => {
-        if (trackingMap.hasLayer(m)) trackingMap.removeLayer(m);
-    });
-    trackingMarkers = [];
-
+    // Fecha ya se filtró en el servidor; aquí solo filtramos vendedor y acción
     trackingFiltrados = todosLosTracking.filter(t => {
-        // Filtro Vendedor
         if (vendedorId !== 'todos' && t.vendedor_id !== vendedorId) return false;
-
-        // Filtro Fecha
-        if (fechaFiltro) {
-            const fechaAudit = t.created_at ? t.created_at.split('T')[0] : '';
-            if (fechaAudit !== fechaFiltro) return false;
-        }
-
-        // Filtro Acción
         if (accionFiltro !== 'todos' && t.action !== accionFiltro) return false;
-
         return true;
     });
 
-    // Ordenar por fecha para la ruta (polyline exige orden cronológico)
     const datosOrdenados = [...trackingFiltrados].sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
 
-    trackingPaginaActual = 1;
-    renderTablaTracking(trackingFiltrados); // Tabla usa el set filtrado (con paginacion)
-    renderMarcadoresTracking(datosOrdenados); // Mapa usa el set ordenado ascendente
+    if (!isAutoRefresh) trackingPaginaActual = 1;
+    renderTablaTracking(trackingFiltrados);
+    renderMarcadoresTracking(datosOrdenados);
 
-    if (trackingMarkers.length > 0) {
-        const group = new L.featureGroup(trackingMarkers);
-        trackingMap.fitBounds(group.getBounds().pad(0.1));
+    // Solo ajustar vista del mapa si el usuario no lo ha movido manualmente
+    if (!mapBoundsLocked) {
+        fitBoundsTracking();
     }
 }
 
@@ -1631,19 +1702,15 @@ function renderizarPaginacionTracking(totalPaginas) {
     const container = document.getElementById('tracking-pagination-container');
     if (!container) return;
 
-    if (totalPaginas <= 1) {
-        container.innerHTML = '';
-        return;
-    }
+    if (totalPaginas <= 1) { container.innerHTML = ''; return; }
 
-    let html = `
+    container.innerHTML = `
         <div class="pagination-controls">
             <button onclick="cambiarPaginaTracking(${trackingPaginaActual - 1})" ${trackingPaginaActual === 1 ? 'disabled' : ''}>Anterior</button>
             <span style="margin: 0 15px;">Página ${trackingPaginaActual} de ${totalPaginas}</span>
             <button onclick="cambiarPaginaTracking(${trackingPaginaActual + 1})" ${trackingPaginaActual === totalPaginas ? 'disabled' : ''}>Siguiente</button>
         </div>
     `;
-    container.innerHTML = html;
 }
 
 // === Utilidades ===

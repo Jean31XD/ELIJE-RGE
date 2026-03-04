@@ -186,6 +186,24 @@ body {
     font-weight: 600;
 }
 
+/* === Stat Chips (Tracking) === */
+.stat-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 4px 12px;
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: 500;
+    background: #f1f5f9;
+    color: #475569;
+    border: 1px solid #e2e8f0;
+}
+.stat-chip-order   { background: #f0fdf4; color: #166534; border-color: #bbf7d0; }
+.stat-chip-checkin { background: #eff6ff; color: #1d4ed8; border-color: #bfdbfe; }
+.stat-chip-periodic{ background: #f8fafc; color: #64748b; border-color: #e2e8f0; }
+.stat-chip-vendor  { background: #faf5ff; color: #7c3aed; border-color: #e9d5ff; }
+
 /* === Buttons === */
 .btn {
     display: inline-flex;
