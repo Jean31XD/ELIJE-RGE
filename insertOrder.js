@@ -37,7 +37,6 @@ const SALES_ORDER_CONFIG = {
             ItemNumber: 'MC-000019103',        // Número del artículo
             OrderedSalesQuantity: 5,           // Cantidad
             SalesPrice: 425,                   // Precio de venta unitario
-            SalesUnitSymbol: 'UND',            // Unidad de medida
             LineNumber: 1,                     // Número de línea
         }
     ]

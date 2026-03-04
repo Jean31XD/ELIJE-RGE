@@ -56,10 +56,14 @@ app.post('/api/pedidos/:id/retry', async (req, res) => {
         }
 
         console.log(`[RETRY] Procesando pedido ${pedido.pedido_numero}...`);
+
+        console.log(`[RETRY] Obteniendo token de acceso...`);
         const token = await getAccessToken();
+        console.log(`[RETRY] Token obtenido. Iniciando proceso en Dynamics...`);
+
         const salesOrderNumber = await processOrder(token, pedido);
 
-        console.log(`[RETRY] ÉXITO -> ${salesOrderNumber}`);
+        console.log(`[RETRY] ÉXITO -> ${salesOrderNumber} para pedido ${pedido.pedido_numero}`);
         res.json({ ok: true, salesOrderNumber });
     } catch (err) {
         const errMsg = extractErrorMessage(err);

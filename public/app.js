@@ -341,12 +341,17 @@ async function reintentarPedido(event, pedidoId) {
         }, 1500);
 
     } catch (error) {
-        alert('Error de Dynamics: ' + error.message);
+        console.error('Error en reintentarPedido:', error);
+        let userMsg = error.message;
+        if (error.message.includes('Failed to fetch') || error.message.includes('NetworkError')) {
+            userMsg = 'Error de conexión con el servidor. El proceso podría seguir en curso en segundo plano.';
+        }
+        alert('Error: ' + userMsg);
         btn.innerHTML = '❌';
         setTimeout(() => {
             btn.innerHTML = originalContent;
             btn.disabled = false;
-            cargarPedidos(); // Recargar para mostrar el error guardado en la tabla
+            cargarPedidos();
         }, 2000);
     }
 }

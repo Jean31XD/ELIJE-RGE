@@ -1,0 +1,215 @@
+﻿C:\Users\user\Desktop\Insertar\dbConnection.js:38:            WHERE TABLE_NAME = 'pedidos' AND COLUMN_NAME = 'enviado_dynamics'
+C:\Users\user\Desktop\Insertar\dbConnection.js:41:            ALTER TABLE [dbo].[pedidos] ADD enviado_dynamics BIT DEFAULT 0;
+C:\Users\user\Desktop\Insertar\dbConnection.js:47:            WHERE TABLE_NAME = 'pedidos' AND COLUMN_NAME = 'dynamics_order_number'
+C:\Users\user\Desktop\Insertar\dbConnection.js:50:            ALTER TABLE [dbo].[pedidos] ADD dynamics_order_number NVARCHAR(50) NULL;
+C:\Users\user\Desktop\Insertar\dbConnection.js:56:            WHERE TABLE_NAME = 'pedidos' AND COLUMN_NAME = 'sync_error'
+C:\Users\user\Desktop\Insertar\dbConnection.js:59:            ALTER TABLE [dbo].[pedidos] ADD sync_error NVARCHAR(MAX) NULL;
+C:\Users\user\Desktop\Insertar\dbConnection.js:77:        SELECT pedido_id, pedido_numero, cliente_nombre, cliente_rnc,
+C:\Users\user\Desktop\Insertar\dbConnection.js:78:               vendedor_nombre, fecha_pedido, total,
+C:\Users\user\Desktop\Insertar\dbConnection.js:81:        FROM [dbo].[pedidos]
+C:\Users\user\Desktop\Insertar\dbConnection.js:82:        ORDER BY fecha_pedido DESC
+C:\Users\user\Desktop\Insertar\dbConnection.js:90:        SELECT p.pedido_id, p.pedido_numero, p.cliente_nombre, p.cliente_rnc,
+C:\Users\user\Desktop\Insertar\dbConnection.js:91:               p.vendedor_nombre, p.fecha_pedido, p.total,
+C:\Users\user\Desktop\Insertar\dbConnection.js:92:               p.cliente_cuenta as pedido_cliente_cuenta,
+C:\Users\user\Desktop\Insertar\dbConnection.js:98:        FROM [dbo].[pedidos] p
+C:\Users\user\Desktop\Insertar\dbConnection.js:109:        ORDER BY p.fecha_pedido ASC
+C:\Users\user\Desktop\Insertar\dbConnection.js:114:async function getOrderById(pedidoId) {
+C:\Users\user\Desktop\Insertar\dbConnection.js:117:        .input('pedidoId', sql.Int, pedidoId)
+C:\Users\user\Desktop\Insertar\dbConnection.js:119:            SELECT p.pedido_id, p.pedido_numero, p.cliente_nombre, p.cliente_rnc,
+C:\Users\user\Desktop\Insertar\dbConnection.js:120:                   p.vendedor_nombre, p.fecha_pedido, p.total,
+C:\Users\user\Desktop\Insertar\dbConnection.js:121:                   p.cliente_cuenta as pedido_cliente_cuenta,
+C:\Users\user\Desktop\Insertar\dbConnection.js:126:            FROM [dbo].[pedidos] p
+C:\Users\user\Desktop\Insertar\dbConnection.js:133:            WHERE p.pedido_id = @pedidoId
+C:\Users\user\Desktop\Insertar\dbConnection.js:138:async function getOrderLines(pedidoId) {
+C:\Users\user\Desktop\Insertar\dbConnection.js:141:        .input('pedidoId', sql.Int, pedidoId)
+C:\Users\user\Desktop\Insertar\dbConnection.js:145:            FROM [dbo].[pedidos_detalle]
+C:\Users\user\Desktop\Insertar\dbConnection.js:146:            WHERE pedido_id = @pedidoId
+C:\Users\user\Desktop\Insertar\dbConnection.js:151:async function saveOrderNumber(pedidoId, dynamicsOrderNumber) {
+C:\Users\user\Desktop\Insertar\dbConnection.js:154:        .input('pedidoId', sql.Int, pedidoId)
+C:\Users\user\Desktop\Insertar\dbConnection.js:157:            UPDATE [dbo].[pedidos]
+C:\Users\user\Desktop\Insertar\dbConnection.js:159:            WHERE pedido_id = @pedidoId
+C:\Users\user\Desktop\Insertar\dbConnection.js:163:async function markOrderAsSent(pedidoId, dynamicsOrderNumber) {
+C:\Users\user\Desktop\Insertar\dbConnection.js:166:        .input('pedidoId', sql.Int, pedidoId)
+C:\Users\user\Desktop\Insertar\dbConnection.js:169:            UPDATE [dbo].[pedidos]
+C:\Users\user\Desktop\Insertar\dbConnection.js:173:            WHERE pedido_id = @pedidoId
+C:\Users\user\Desktop\Insertar\dbConnection.js:177:async function markOrderAsFailed(pedidoId, errorMsg) {
+C:\Users\user\Desktop\Insertar\dbConnection.js:180:        .input('pedidoId', sql.Int, pedidoId)
+C:\Users\user\Desktop\Insertar\dbConnection.js:183:            UPDATE [dbo].[pedidos]
+C:\Users\user\Desktop\Insertar\dbConnection.js:186:            WHERE pedido_id = @pedidoId
+C:\Users\user\Desktop\Insertar\dbConnection.js:190:async function resetOrderSyncStatus(pedidoId) {
+C:\Users\user\Desktop\Insertar\dbConnection.js:193:        .input('pedidoId', sql.Int, pedidoId)
+C:\Users\user\Desktop\Insertar\dbConnection.js:195:            UPDATE [dbo].[pedidos]
+C:\Users\user\Desktop\Insertar\dbConnection.js:198:            WHERE pedido_id = @pedidoId
+C:\Users\user\Desktop\Insertar\dbConnection.js:219:                COUNT(*) AS total_pedidos,
+C:\Users\user\Desktop\Insertar\dbConnection.js:221:                ISNULL(AVG(total), 0) AS promedio_pedido,
+C:\Users\user\Desktop\Insertar\dbConnection.js:227:            FROM [dbo].[pedidos]
+C:\Users\user\Desktop\Insertar\dbConnection.js:232:                CONVERT(VARCHAR(10), fecha_pedido, 120) AS fecha,
+C:\Users\user\Desktop\Insertar\dbConnection.js:235:            FROM [dbo].[pedidos]
+C:\Users\user\Desktop\Insertar\dbConnection.js:236:            WHERE fecha_pedido >= DATEADD(DAY, -30, GETDATE())
+C:\Users\user\Desktop\Insertar\dbConnection.js:237:            GROUP BY CONVERT(VARCHAR(10), fecha_pedido, 120)
+C:\Users\user\Desktop\Insertar\dbConnection.js:243:                FORMAT(fecha_pedido, 'yyyy-MM') AS mes,
+C:\Users\user\Desktop\Insertar\dbConnection.js:246:            FROM [dbo].[pedidos]
+C:\Users\user\Desktop\Insertar\dbConnection.js:247:            WHERE fecha_pedido >= DATEADD(MONTH, -12, GETDATE())
+C:\Users\user\Desktop\Insertar\dbConnection.js:248:            GROUP BY FORMAT(fecha_pedido, 'yyyy-MM')
+C:\Users\user\Desktop\Insertar\dbConnection.js:255:                COUNT(*) AS total_pedidos,
+C:\Users\user\Desktop\Insertar\dbConnection.js:257:            FROM [dbo].[pedidos]
+C:\Users\user\Desktop\Insertar\dbConnection.js:265:                COUNT(*) AS total_pedidos,
+C:\Users\user\Desktop\Insertar\dbConnection.js:267:            FROM [dbo].[pedidos]
+C:\Users\user\Desktop\Insertar\dbConnection.js:277:            FROM [dbo].[pedidos_detalle]
+C:\Users\user\Desktop\Insertar\dbConnection.js:281:        // Ultimos 5 pedidos
+C:\Users\user\Desktop\Insertar\dbConnection.js:284:                pedido_numero, cliente_nombre, vendedor_nombre,
+C:\Users\user\Desktop\Insertar\dbConnection.js:285:                fecha_pedido, total,
+C:\Users\user\Desktop\Insertar\dbConnection.js:288:            FROM [dbo].[pedidos]
+C:\Users\user\Desktop\Insertar\dbConnection.js:289:            ORDER BY fecha_pedido DESC
+C:\Users\user\Desktop\Insertar\dbConnection.js:336:                FROM [dbo].[pedidos] p 
+C:\Users\user\Desktop\Insertar\dbConnection.js:338:                AND ABS(DATEDIFF(MINUTE, p.fecha_pedido, t.created_at)) < 15
+C:\Users\user\Desktop\Insertar\dbConnection.js:340:                ORDER BY ABS(DATEDIFF(SECOND, p.fecha_pedido, t.created_at))
+C:\Users\user\Desktop\Insertar\insertOrder.js:30:        CustomerRequisitionNumber: 'PED-TEST-001',           // Número de pedido (Referencia)
+C:\Users\user\Desktop\Insertar\server.js:47:app.post('/api/pedidos/:id/retry', async (req, res) => {
+C:\Users\user\Desktop\Insertar\server.js:51:        const pedidoId = parseInt(id);
+C:\Users\user\Desktop\Insertar\server.js:52:        const pedido = await getOrderById(pedidoId);
+C:\Users\user\Desktop\Insertar\server.js:53:        if (!pedido) {
+C:\Users\user\Desktop\Insertar\server.js:54:            console.log(`[RETRY] Pedido ${id} no encontrado en DB`);
+C:\Users\user\Desktop\Insertar\server.js:55:            return res.status(404).json({ error: 'Pedido no encontrado' });
+C:\Users\user\Desktop\Insertar\server.js:58:        console.log(`[RETRY] Procesando pedido ${pedido.pedido_numero}...`);
+C:\Users\user\Desktop\Insertar\server.js:64:        const salesOrderNumber = await processOrder(token, pedido);
+C:\Users\user\Desktop\Insertar\server.js:66:        console.log(`[RETRY] ÉXITO -> ${salesOrderNumber} para pedido ${pedido.pedido_numero}`);
+C:\Users\user\Desktop\Insertar\server.js:126:app.get('/api/pedidos', async (req, res) => {
+C:\Users\user\Desktop\Insertar\server.js:128:        const pedidos = await getAllOrders();
+C:\Users\user\Desktop\Insertar\server.js:129:        res.json(pedidos);
+C:\Users\user\Desktop\Insertar\server.js:131:        console.error('Error en /api/pedidos:', err.message);
+C:\Users\user\Desktop\Insertar\server.js:136:app.get('/api/pedidos/:id/lineas', async (req, res) => {
+C:\Users\user\Desktop\Insertar\server.js:141:        console.error(`Error en /api/pedidos/${req.params.id}/lineas:`, err.message);
+C:\Users\user\Desktop\Insertar\server.js:207:            WHERE TABLE_NAME IN ('pedidos', 'pedidos_detalle')
+C:\Users\user\Desktop\Insertar\syncOrders.js:81:async function createSalesOrderHeader(token, pedido) {
+C:\Users\user\Desktop\Insertar\syncOrders.js:85:    // 1. Cuenta en el pedido, 2. Mapeo por nombre, 3. Mapeo por RNC
+C:\Users\user\Desktop\Insertar\syncOrders.js:86:    const customerAccount = pedido.cliente_accountnum;
+C:\Users\user\Desktop\Insertar\syncOrders.js:89:        throw new Error(`No se pudo determinar una cuenta de cliente (AccountNum) para el pedido ${pedido.pedido_numero}`);
+C:\Users\user\Desktop\Insertar\syncOrders.js:92:    // Verificar en D365 si ya existe una OV con este número de pedido para evitar duplicados
+C:\Users\user\Desktop\Insertar\syncOrders.js:93:    if (pedido.pedido_numero) {
+C:\Users\user\Desktop\Insertar\syncOrders.js:94:        const checkUrl = `${baseUrl}SalesOrderHeadersV2?$filter=CustomerRequisitionNumber eq '${pedido.pedido_numero}' and dataAreaId eq 'maco'&$select=SalesOrderNumber,CustomerRequisitionNumber`;
+C:\Users\user\Desktop\Insertar\syncOrders.js:100:            log(`  [D365 DUPLICADO EVITADO] Ya existe ${existingOV} con pedido_numero=${pedido.pedido_numero}. Usando OV existente.`);
+C:\Users\user\Desktop\Insertar\syncOrders.js:109:        SalesOrderName: (pedido.cliente_nombre || '').substring(0, 60), // Límite de D365
+C:\Users\user\Desktop\Insertar\syncOrders.js:111:        RequestedShippingDate: new Date(pedido.fecha_pedido).toISOString().split('T')[0] + 'T12:00:00Z',
+C:\Users\user\Desktop\Insertar\syncOrders.js:112:        CustomersOrderReference: (pedido.vendedor_nombre || '').substring(0, 60),
+C:\Users\user\Desktop\Insertar\syncOrders.js:113:        CommissionSalesRepresentativeGroupId: pedido.vendedor_sales_group_id || '',
+C:\Users\user\Desktop\Insertar\syncOrders.js:116:    if (pedido.pedido_numero) {
+C:\Users\user\Desktop\Insertar\syncOrders.js:117:        headerData.CustomerRequisitionNumber = pedido.pedido_numero.substring(0, 50);
+C:\Users\user\Desktop\Insertar\syncOrders.js:120:    if (pedido.vendedor_personnel_number) {
+C:\Users\user\Desktop\Insertar\syncOrders.js:121:        headerData.OrderResponsiblePersonnelNumber = pedido.vendedor_personnel_number;
+C:\Users\user\Desktop\Insertar\syncOrders.js:125:    const taker = pedido.vendedor_personnel_number; // Desactivamos secretario temporalmente por error SQL
+C:\Users\user\Desktop\Insertar\syncOrders.js:130:    log(`  Creando header -> Cliente: ${customerAccount} | Pedido: ${pedido.pedido_numero} | Resp: ${pedido.vendedor_personnel_number || '-'} | Ref: ${pedido.vendedor_nombre}`);
+C:\Users\user\Desktop\Insertar\syncOrders.js:196:async function processOrder(token, pedido) {
+C:\Users\user\Desktop\Insertar\syncOrders.js:197:    log(`--- Pedido ${pedido.pedido_numero} | ${pedido.cliente_nombre} | $${pedido.total}`);
+C:\Users\user\Desktop\Insertar\syncOrders.js:200:    const freshPedido = await getOrderById(pedido.pedido_id);
+C:\Users\user\Desktop\Insertar\syncOrders.js:201:    if (freshPedido && freshPedido.dynamics_order_number) {
+C:\Users\user\Desktop\Insertar\syncOrders.js:202:        log(`  [PREVENCIÓN] El pedido ya tiene SO asignado en DB (${freshPedido.dynamics_order_number}). Omitiendo creación de header.`);
+C:\Users\user\Desktop\Insertar\syncOrders.js:203:        pedido.dynamics_order_number = freshPedido.dynamics_order_number;
+C:\Users\user\Desktop\Insertar\syncOrders.js:206:    let salesOrderNumber = pedido.dynamics_order_number;
+C:\Users\user\Desktop\Insertar\syncOrders.js:212:        if (pedido.vendedor_personnel_number) {
+C:\Users\user\Desktop\Insertar\syncOrders.js:213:            log(`  Responsable: ${pedido.vendedor_nombre} -> ${pedido.vendedor_personnel_number}`);
+C:\Users\user\Desktop\Insertar\syncOrders.js:214:            if (pedido.secretario_personnel_number) {
+C:\Users\user\Desktop\Insertar\syncOrders.js:215:                log(`  Secretario de ventas: ${pedido.secretario_personnel_number}`);
+C:\Users\user\Desktop\Insertar\syncOrders.js:217:                log(`  ADVERTENCIA: No hay secretario asignado para ${pedido.vendedor_nombre}. Se usará el mismo vendedor como OrderTaker.`);
+C:\Users\user\Desktop\Insertar\syncOrders.js:220:            log(`  ADVERTENCIA: No se encontró mapeo de PersonnelNumber para el vendedor: ${pedido.vendedor_nombre}`);
+C:\Users\user\Desktop\Insertar\syncOrders.js:223:        salesOrderNumber = await createSalesOrderHeader(token, pedido);
+C:\Users\user\Desktop\Insertar\syncOrders.js:227:        await saveOrderNumber(pedido.pedido_id, salesOrderNumber);
+C:\Users\user\Desktop\Insertar\syncOrders.js:230:    const lines = await getOrderLines(pedido.pedido_id);
+C:\Users\user\Desktop\Insertar\syncOrders.js:233:    // Caché local de settings por artículo para este pedido
+C:\Users\user\Desktop\Insertar\syncOrders.js:248:        await addSalesOrderLine(token, salesOrderNumber, line, i + 1, itemSettingsCache.get(line.item_id), pedido.vendedor_sales_group_id);
+C:\Users\user\Desktop\Insertar\syncOrders.js:254:    // Esto asegura que si el servidor se reinicia, el pedido no queda marcado como enviado
+C:\Users\user\Desktop\Insertar\syncOrders.js:260:        CustomersOrderReference: (pedido.vendedor_nombre || '').substring(0, 60),
+C:\Users\user\Desktop\Insertar\syncOrders.js:261:        SalesOrderName: (pedido.cliente_nombre || '').substring(0, 60),
+C:\Users\user\Desktop\Insertar\syncOrders.js:264:    if (pedido.pedido_numero) {
+C:\Users\user\Desktop\Insertar\syncOrders.js:265:        patchData.CustomerRequisitionNumber = pedido.pedido_numero.substring(0, 50);
+C:\Users\user\Desktop\Insertar\syncOrders.js:268:    if (pedido.vendedor_personnel_number) {
+C:\Users\user\Desktop\Insertar\syncOrders.js:269:        patchData.OrderResponsiblePersonnelNumber = pedido.vendedor_personnel_number;
+C:\Users\user\Desktop\Insertar\syncOrders.js:272:    const taker = pedido.vendedor_personnel_number;
+C:\Users\user\Desktop\Insertar\syncOrders.js:285:        log(`  [PATCH OK] Resp: ${pedido.vendedor_personnel_number || '-'} | Ref: ${pedido.vendedor_nombre}`);
+C:\Users\user\Desktop\Insertar\syncOrders.js:287:        log(`  [PATCH ERROR] ${patchErr.message} (el pedido se marcará como enviado de todas formas)`);
+C:\Users\user\Desktop\Insertar\syncOrders.js:290:    await markOrderAsSent(pedido.pedido_id, salesOrderNumber);
+C:\Users\user\Desktop\Insertar\syncOrders.js:291:    log(`  COMPLETADO -> ${pedido.pedido_numero} = ${salesOrderNumber}`);
+C:\Users\user\Desktop\Insertar\syncOrders.js:301:    // Pedidos enviados en las últimas 4 horas con vendedor mapeado
+C:\Users\user\Desktop\Insertar\syncOrders.js:303:        SELECT TOP 30 p.dynamics_order_number, p.pedido_numero, p.vendedor_nombre, p.cliente_nombre,
+C:\Users\user\Desktop\Insertar\syncOrders.js:307:        FROM [dbo].[pedidos] p
+C:\Users\user\Desktop\Insertar\syncOrders.js:312:          AND p.fecha_pedido >= DATEADD(HOUR, -4, GETDATE())
+C:\Users\user\Desktop\Insertar\syncOrders.js:313:        ORDER BY p.fecha_pedido DESC
+C:\Users\user\Desktop\Insertar\syncOrders.js:340:                CustomerRequisitionNumber: row.pedido_numero,
+C:\Users\user\Desktop\Insertar\syncOrders.js:372:        // Un pedido es procesable si tiene un número de cuenta (AccountNum) válido
+C:\Users\user\Desktop\Insertar\syncOrders.js:388:        log(`CICLO #${cycleCount}: ${pendingOrders.length} pedido(s) para enviar${sinCuenta ? ' (' + sinCuenta + ' sin AccountNum válido)' : ''}`);
+C:\Users\user\Desktop\Insertar\syncOrders.js:393:        for (const pedido of pendingOrders) {
+C:\Users\user\Desktop\Insertar\syncOrders.js:395:                await processOrder(token, pedido);
+C:\Users\user\Desktop\Insertar\syncOrders.js:400:                log(`  ERROR en ${pedido.pedido_numero}: ${errMsg}`);
+C:\Users\user\Desktop\Insertar\syncOrders.js:403:                    await markOrderAsFailed(pedido.pedido_id, errMsg);
+C:\Users\user\Desktop\Insertar\_check_scope.js:28:    if (line.includes('pedido') && !line.includes('function') && !line.includes('//')) {
+C:\Users\user\Desktop\Insertar\_check_scope.js:33:            const hasParam = func.params.includes('pedido');
+C:\Users\user\Desktop\Insertar\_check_scope.js:39:                if (lines[j].includes('for (const pedido of')) {
+C:\Users\user\Desktop\Insertar\public\app.js:1:let todosLosPedidos = [];
+C:\Users\user\Desktop\Insertar\public\app.js:2:let pedidoActual = null;
+C:\Users\user\Desktop\Insertar\public\app.js:3:let pedidosFiltrados = [];
+C:\Users\user\Desktop\Insertar\public\app.js:108:// === Cargar Pedidos ===
+C:\Users\user\Desktop\Insertar\public\app.js:109:async function cargarPedidos() {
+C:\Users\user\Desktop\Insertar\public\app.js:110:    const body = document.getElementById('pedidos-body');
+C:\Users\user\Desktop\Insertar\public\app.js:119:        const res = await fetch('/api/pedidos');
+C:\Users\user\Desktop\Insertar\public\app.js:121:        todosLosPedidos = await res.json();
+C:\Users\user\Desktop\Insertar\public\app.js:138:    pedidosFiltrados = todosLosPedidos.filter(p => {
+C:\Users\user\Desktop\Insertar\public\app.js:141:            const texto = `${p.pedido_numero} ${p.cliente_nombre} ${p.vendedor_nombre} ${p.cliente_rnc || ''} ${p.dynamics_order_number || ''}`.toLowerCase();
+C:\Users\user\Desktop\Insertar\public\app.js:146:        const fecha = p.fecha_pedido ? p.fecha_pedido.split('T')[0] : '';
+C:\Users\user\Desktop\Insertar\public\app.js:162:    const totalPaginas = Math.ceil(pedidosFiltrados.length / registrosPorPagina);
+C:\Users\user\Desktop\Insertar\public\app.js:165:    const datosPagina = pedidosFiltrados.slice(inicio, fin);
+C:\Users\user\Desktop\Insertar\public\app.js:172:    const totalPaginas = Math.ceil(pedidosFiltrados.length / registrosPorPagina);
+C:\Users\user\Desktop\Insertar\public\app.js:189:    const fin = Math.min(paginaActual * registrosPorPagina, pedidosFiltrados.length);
+C:\Users\user\Desktop\Insertar\public\app.js:190:    const total = pedidosFiltrados.length;
+C:\Users\user\Desktop\Insertar\public\app.js:246:    const body = document.getElementById('pedidos-body');
+C:\Users\user\Desktop\Insertar\public\app.js:250:    contador.textContent = `${pedidosFiltrados.length} de ${todosLosPedidos.length}`;
+C:\Users\user\Desktop\Insertar\public\app.js:261:        const fecha = p.fecha_pedido
+C:\Users\user\Desktop\Insertar\public\app.js:262:            ? new Date(p.fecha_pedido).toLocaleDateString('es-DO', { day: '2-digit', month: 'short', year: 'numeric' })
+C:\Users\user\Desktop\Insertar\public\app.js:283:            ? `<button class="btn btn-ghost btn-sm" onclick="reintentarPedido(event, ${p.pedido_id})" title="Forzar reintento de envío de este pedido">
+C:\Users\user\Desktop\Insertar\public\app.js:289:            <tr id="pedido-row-${p.pedido_id}">
+C:\Users\user\Desktop\Insertar\public\app.js:290:                <td><span class="pedido-num">${escapeHtml(p.pedido_numero)}</span></td>
+C:\Users\user\Desktop\Insertar\public\app.js:303:                        <button class="btn btn-primary btn-sm" onclick="verDetalle(${p.pedido_id})">
+C:\Users\user\Desktop\Insertar\public\app.js:313:async function reintentarPedido(event, pedidoId) {
+C:\Users\user\Desktop\Insertar\public\app.js:322:        const res = await fetch(`/api/pedidos/${pedidoId}/retry`, { method: 'POST' });
+C:\Users\user\Desktop\Insertar\public\app.js:333:        if (!res.ok) throw new Error(data.error || 'Error al procesar pedido');
+C:\Users\user\Desktop\Insertar\public\app.js:340:            cargarPedidos(); // Recargar lista para ver cambios
+C:\Users\user\Desktop\Insertar\public\app.js:344:        console.error('Error en reintentarPedido:', error);
+C:\Users\user\Desktop\Insertar\public\app.js:354:            cargarPedidos();
+C:\Users\user\Desktop\Insertar\public\app.js:360:async function verDetalle(pedidoId) {
+C:\Users\user\Desktop\Insertar\public\app.js:361:    pedidoActual = todosLosPedidos.find(p => p.pedido_id === pedidoId);
+C:\Users\user\Desktop\Insertar\public\app.js:362:    if (!pedidoActual) return;
+C:\Users\user\Desktop\Insertar\public\app.js:367:    document.getElementById('page-title').textContent = `Pedido ${pedidoActual.pedido_numero}`;
+C:\Users\user\Desktop\Insertar\public\app.js:371:    const fecha = pedidoActual.fecha_pedido
+C:\Users\user\Desktop\Insertar\public\app.js:372:        ? new Date(pedidoActual.fecha_pedido).toLocaleDateString('es-DO', { day: '2-digit', month: 'long', year: 'numeric' })
+C:\Users\user\Desktop\Insertar\public\app.js:377:            <span class="label">Pedido</span>
+C:\Users\user\Desktop\Insertar\public\app.js:378:            <span class="value">${escapeHtml(pedidoActual.pedido_numero)}</span>
+C:\Users\user\Desktop\Insertar\public\app.js:382:            <span class="value">${escapeHtml(pedidoActual.cliente_nombre)}</span>
+C:\Users\user\Desktop\Insertar\public\app.js:386:            <span class="value">${escapeHtml(pedidoActual.cliente_rnc || '-')}</span>
+C:\Users\user\Desktop\Insertar\public\app.js:390:            <span class="value">${escapeHtml(pedidoActual.vendedor_nombre)}</span>
+C:\Users\user\Desktop\Insertar\public\app.js:398:            <span class="value" style="color: var(--success);">${formatter.format(pedidoActual.total)}</span>
+C:\Users\user\Desktop\Insertar\public\app.js:402:            <span class="value">${pedidoActual.enviado_dynamics ? 'Enviado a Dynamics' : (pedidoActual.sync_error ? 'Error de Sincronización' : 'Pendiente')}</span>
+C:\Users\user\Desktop\Insertar\public\app.js:404:        ${pedidoActual.dynamics_order_number ? `
+C:\Users\user\Desktop\Insertar\public\app.js:407:            <span class="value">${escapeHtml(pedidoActual.dynamics_order_number)}</span>
+C:\Users\user\Desktop\Insertar\public\app.js:410:        ${pedidoActual.sync_error ? `
+C:\Users\user\Desktop\Insertar\public\app.js:413:            <span class="value" style="color: var(--danger); font-size: 13px; white-space: normal;">${escapeHtml(pedidoActual.sync_error)}</span>
+C:\Users\user\Desktop\Insertar\public\app.js:428:        const res = await fetch(`/api/pedidos/${pedidoId}/lineas`);
+C:\Users\user\Desktop\Insertar\public\app.js:476:    document.getElementById('page-title').textContent = 'Pedidos';
+C:\Users\user\Desktop\Insertar\public\app.js:477:    pedidoActual = null;
+C:\Users\user\Desktop\Insertar\public\app.js:505:    } else if (view === 'pedidos') {
+C:\Users\user\Desktop\Insertar\public\app.js:507:        document.getElementById('page-title').textContent = 'Pedidos';
+C:\Users\user\Desktop\Insertar\public\app.js:509:        if (todosLosPedidos.length === 0) cargarPedidos();
+C:\Users\user\Desktop\Insertar\public\app.js:887:    const syncRate = k.total_pedidos > 0
+C:\Users\user\Desktop\Insertar\public\app.js:888:        ? ((k.enviados_dynamics / k.total_pedidos) * 100).toFixed(1)
+C:\Users\user\Desktop\Insertar\public\app.js:901:                    <span class="kpi-value">${k.total_pedidos.toLocaleString('es-DO')}</span>
+C:\Users\user\Desktop\Insertar\public\app.js:902:                    <span class="kpi-label">Total Pedidos</span>
+C:\Users\user\Desktop\Insertar\public\app.js:955:                <span class="sync-count">${formatter.format(k.promedio_pedido)}</span>
+C:\Users\user\Desktop\Insertar\public\app.js:956:                <span class="sync-label">Promedio por Pedido</span>
+C:\Users\user\Desktop\Insertar\public\app.js:966:                <h3 class="chart-title">Estado de Pedidos</h3>
+C:\Users\user\Desktop\Insertar\public\app.js:994:            <h3 class="ranking-title">Pedidos Recientes</h3>
+C:\Users\user\Desktop\Insertar\public\app.js:1000:                                <th>Pedido</th>
+C:\Users\user\Desktop\Insertar\public\app.js:1043:                    <span class="ranking-count">${item.total_pedidos} pedidos</span>
+C:\Users\user\Desktop\Insertar\public\app.js:1053:        body.innerHTML = '<tr><td colspan="6" class="text-center" style="padding: 32px; color: var(--text-secondary);">Sin pedidos recientes</td></tr>';
+C:\Users\user\Desktop\Insertar\public\app.js:1057:        const fecha = p.fecha_pedido
+C:\Users\user\Desktop\Insertar\public\app.js:1058:            ? new Date(p.fecha_pedido).toLocaleDateString('es-DO', { day: '2-digit', month: 'short', year: 'numeric' })
+C:\Users\user\Desktop\Insertar\public\app.js:1067:                <td><span class="pedido-num">${escapeHtml(p.pedido_numero)}</span></td>
+C:\Users\user\Desktop\Insertar\public\app.js:1137:    // Estado de pedidos - Dona
+C:\Users\user\Desktop\Insertar\public\app.js:1324:                <td><span class="pedido-num">${escapeHtml(c.invoice)}</span></td>

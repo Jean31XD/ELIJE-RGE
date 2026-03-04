@@ -92,6 +92,7 @@ async function getPendingOrders() {
                p.cliente_cuenta as pedido_cliente_cuenta,
                p.dynamics_order_number,
                m.personnel_number AS vendedor_personnel_number,
+               m.sales_group_id AS vendedor_sales_group_id,
                -- Priorizar custtable (RNC) y Cartera_cliente (Nombre) sobre p.cliente_cuenta para evitar datos basura
                COALESCE(ct.accountnum, c.accountnum, NULLIF(LTRIM(RTRIM(p.cliente_cuenta)), '')) AS cliente_accountnum
         FROM [dbo].[pedidos] p
@@ -120,6 +121,7 @@ async function getOrderById(pedidoId) {
                    p.cliente_cuenta as pedido_cliente_cuenta,
                    p.dynamics_order_number,
                    m.personnel_number AS vendedor_personnel_number,
+                   m.sales_group_id AS vendedor_sales_group_id,
                    COALESCE(ct.accountnum, c.accountnum, NULLIF(LTRIM(RTRIM(p.cliente_cuenta)), '')) AS cliente_accountnum
             FROM [dbo].[pedidos] p
             LEFT JOIN [dbo].[vendedor_dynamics_map] m

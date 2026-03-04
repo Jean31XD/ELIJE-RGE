@@ -78,26 +78,26 @@ function log(msg) {
     if (syncLog.length > 100) syncLog.shift();
 }
 
-async function createSalesOrderHeader(token, pedido) {
+async function createSalesOrderHeader(token, objPedido) {
     const baseUrl = getBaseUrl();
 
     // El campo cliente_accountnum ya viene procesado desde SQL con la prioridad:
-    // 1. Cuenta en el pedido, 2. Mapeo por nombre, 3. Mapeo por RNC
-    const customerAccount = pedido.cliente_accountnum;
+    // 1. Cuenta en el objPedido, 2. Mapeo por nombre, 3. Mapeo por RNC
+    const customerAccount = objPedido.cliente_accountnum;
 
     if (!customerAccount) {
-        throw new Error(`No se pudo determinar una cuenta de cliente (AccountNum) para el pedido ${pedido.pedido_numero}`);
+        throw new Error(`No se pudo determinar una cuenta de cliente (AccountNum) para el objPedido ${objPedido.pedido_numero}`);
     }
 
-    // Verificar en D365 si ya existe una OV con este número de pedido para evitar duplicados
-    if (pedido.pedido_numero) {
-        const checkUrl = `${baseUrl}SalesOrderHeadersV2?$filter=CustomerRequisitionNumber eq '${pedido.pedido_numero}' and dataAreaId eq 'maco'&$select=SalesOrderNumber,CustomerRequisitionNumber`;
+    // Verificar en D365 si ya existe una OV con este número de objPedido para evitar duplicados
+    if (objPedido.pedido_numero) {
+        const checkUrl = `${baseUrl}SalesOrderHeadersV2?$filter=CustomerRequisitionNumber eq '${objPedido.pedido_numero}' and dataAreaId eq 'maco'&$select=SalesOrderNumber,CustomerRequisitionNumber`;
         const checkRes = await axios.get(checkUrl, {
             headers: { 'Authorization': `Bearer ${token}`, 'Accept': 'application/json' }
         });
         if (checkRes.data.value.length > 0) {
             const existingOV = checkRes.data.value[0].SalesOrderNumber;
-            log(`  [D365 DUPLICADO EVITADO] Ya existe ${existingOV} con pedido_numero=${pedido.pedido_numero}. Usando OV existente.`);
+            log(`  [D365 DUPLICADO EVITADO] Ya existe ${existingOV} con pedido_numero=${objPedido.pedido_numero}. Usando OV existente.`);
             return existingOV;
         }
     }
@@ -106,24 +106,28 @@ async function createSalesOrderHeader(token, pedido) {
         dataAreaId: 'maco',
         OrderingCustomerAccountNumber: customerAccount,
         InvoiceCustomerAccountNumber: customerAccount,
-        SalesOrderName: pedido.cliente_nombre, // Nombre del cliente
+        SalesOrderName: (objPedido.cliente_nombre || '').substring(0, 60), // Límite de D365
         CurrencyCode: 'DOP',
-        RequestedShippingDate: new Date(pedido.fecha_pedido).toISOString().split('T')[0] + 'T12:00:00Z',
-        CustomerRequisitionNumber: pedido.pedido_numero,
-        CustomersOrderReference: pedido.vendedor_nombre,
+        RequestedShippingDate: new Date(objPedido.fecha_pedido).toISOString().split('T')[0] + 'T12:00:00Z',
+        CustomersOrderReference: (objPedido.vendedor_nombre || '').substring(0, 60),
+        CommissionSalesRepresentativeGroupId: objPedido.vendedor_sales_group_id || '',
     };
 
-    if (pedido.vendedor_personnel_number) {
-        headerData.OrderResponsiblePersonnelNumber = pedido.vendedor_personnel_number;
+    if (objPedido.pedido_numero) {
+        headerData.CustomerRequisitionNumber = objPedido.pedido_numero.substring(0, 50);
+    }
+
+    if (objPedido.vendedor_personnel_number) {
+        headerData.OrderResponsiblePersonnelNumber = objPedido.vendedor_personnel_number;
     }
 
     // Secretario o vendedor como OrderTaker
-    const taker = pedido.vendedor_personnel_number; // Desactivamos secretario temporalmente por error SQL
+    const taker = objPedido.vendedor_personnel_number; // Desactivamos secretario temporalmente por error SQL
     if (taker) {
         headerData.OrderTakerPersonnelNumber = taker;
     }
 
-    log(`  Creando header -> Cliente: ${customerAccount} | Pedido: ${pedido.pedido_numero} | Resp: ${pedido.vendedor_personnel_number || '-'} | Ref: ${pedido.vendedor_nombre}`);
+    log(`  Creando header -> Cliente: ${customerAccount} | Pedido: ${objPedido.pedido_numero} | Resp: ${objPedido.vendedor_personnel_number || '-'} | Ref: ${objPedido.vendedor_nombre}`);
 
     const response = await axios.post(baseUrl + 'SalesOrderHeadersV2', headerData, {
         headers: {
@@ -136,7 +140,37 @@ async function createSalesOrderHeader(token, pedido) {
     return response.data.SalesOrderNumber;
 }
 
-async function addSalesOrderLine(token, salesOrderNumber, line, lineNumber) {
+/**
+ * Obtiene el almacén y sitio predeterminado de ventas para un artículo desde D365.
+ */
+async function getItemDefaultSettings(token, itemId) {
+    const baseUrl = getBaseUrl();
+    const urlDefaults = `${baseUrl}ProductDefaultOrderSettings?$filter=ItemNumber eq '${itemId}' and dataAreaId eq 'maco'&$select=SalesWarehouseId,SalesSiteId`;
+    const urlProduct = `${baseUrl}ReleasedProductsV2?$filter=ItemNumber eq '${itemId}' and dataAreaId eq 'maco'&$select=SalesUnitSymbol`;
+
+    try {
+        const [resDefs, resProd] = await Promise.all([
+            axios.get(urlDefaults, { headers: { 'Authorization': `Bearer ${token}`, 'Accept': 'application/json' } }),
+            axios.get(urlProduct, { headers: { 'Authorization': `Bearer ${token}`, 'Accept': 'application/json' } })
+        ]);
+
+        let result = {};
+        if (resDefs.data.value.length > 0) {
+            result.warehouse = resDefs.data.value[0].SalesWarehouseId;
+            result.site = resDefs.data.value[0].SalesSiteId;
+        }
+        if (resProd.data.value.length > 0) {
+            result.salesUnit = resProd.data.value[0].SalesUnitSymbol;
+        }
+
+        return Object.keys(result).length > 0 ? result : null;
+    } catch (err) {
+        console.error(`  [WARN] No se pudieron obtener los settings para ${itemId}: ${err.message}`);
+    }
+    return null;
+}
+
+async function addSalesOrderLine(token, salesOrderNumber, line, lineNumber, defaults, salesGroupId) {
     const url = `${getBaseUrl()}SalesOrderLines`;
 
     const payload = {
@@ -145,9 +179,15 @@ async function addSalesOrderLine(token, salesOrderNumber, line, lineNumber) {
         ItemNumber: line.item_id,
         OrderedSalesQuantity: line.cantidad,
         SalesPrice: line.precio_unitario,
-        SalesUnitSymbol: 'UND',
         LineNumber: lineNumber,
+        CommissionSalesRepresentativeGroupId: salesGroupId || '',
     };
+
+    if (defaults) {
+        if (defaults.warehouse) payload.ShippingWarehouseId = defaults.warehouse;
+        if (defaults.site) payload.ShippingSiteId = defaults.site;
+        if (defaults.salesUnit) payload.SalesUnitSymbol = defaults.salesUnit;
+    }
 
     const response = await axios.post(url, payload, {
         headers: {
@@ -160,66 +200,83 @@ async function addSalesOrderLine(token, salesOrderNumber, line, lineNumber) {
     return response.data;
 }
 
-async function processOrder(token, pedido) {
-    log(`--- Pedido ${pedido.pedido_numero} | ${pedido.cliente_nombre} | $${pedido.total}`);
+async function processOrder(token, objPedido) {
+    log(`--- Pedido ${objPedido.pedido_numero} | ${objPedido.cliente_nombre} | $${objPedido.total}`);
 
     // Re-verificar contra DB para evitar race conditions (especialmente si hay varios procesos node)
-    const freshPedido = await getOrderById(pedido.pedido_id);
+    const freshPedido = await getOrderById(objPedido.pedido_id);
     if (freshPedido && freshPedido.dynamics_order_number) {
-        log(`  [PREVENCIÓN] El pedido ya tiene SO asignado en DB (${freshPedido.dynamics_order_number}). Omitiendo creación de header.`);
-        pedido.dynamics_order_number = freshPedido.dynamics_order_number;
+        log(`  [PREVENCIÓN] El objPedido ya tiene SO asignado en DB (${freshPedido.dynamics_order_number}). Omitiendo creación de header.`);
+        objPedido.dynamics_order_number = freshPedido.dynamics_order_number;
     }
 
-    let salesOrderNumber = pedido.dynamics_order_number;
+    let salesOrderNumber = objPedido.dynamics_order_number;
 
     if (salesOrderNumber) {
         log(`  Header ya existe -> ${salesOrderNumber} (procediendo con lineas si es necesario)`);
     } else {
         log(`  Iniciando creación de header en Dynamics...`);
-        if (pedido.vendedor_personnel_number) {
-            log(`  Responsable: ${pedido.vendedor_nombre} -> ${pedido.vendedor_personnel_number}`);
-            if (pedido.secretario_personnel_number) {
-                log(`  Secretario de ventas: ${pedido.secretario_personnel_number}`);
+        if (objPedido.vendedor_personnel_number) {
+            log(`  Responsable: ${objPedido.vendedor_nombre} -> ${objPedido.vendedor_personnel_number}`);
+            if (objPedido.secretario_personnel_number) {
+                log(`  Secretario de ventas: ${objPedido.secretario_personnel_number}`);
             } else {
-                log(`  ADVERTENCIA: No hay secretario asignado para ${pedido.vendedor_nombre}. Se usará el mismo vendedor como OrderTaker.`);
+                log(`  ADVERTENCIA: No hay secretario asignado para ${objPedido.vendedor_nombre}. Se usará el mismo vendedor como OrderTaker.`);
             }
         } else {
-            log(`  ADVERTENCIA: No se encontró mapeo de PersonnelNumber para el vendedor: ${pedido.vendedor_nombre}`);
+            log(`  ADVERTENCIA: No se encontró mapeo de PersonnelNumber para el vendedor: ${objPedido.vendedor_nombre}`);
         }
 
-        salesOrderNumber = await createSalesOrderHeader(token, pedido);
+        salesOrderNumber = await createSalesOrderHeader(token, objPedido);
         log(`  Header creado con éxito -> ${salesOrderNumber}`);
 
         // Guardar inmediatamente para evitar duplicados si las lineas fallan en el siguiente paso
-        await saveOrderNumber(pedido.pedido_id, salesOrderNumber);
+        await saveOrderNumber(objPedido.pedido_id, salesOrderNumber);
     }
 
-    const lines = await getOrderLines(pedido.pedido_id);
+    const lines = await getOrderLines(objPedido.pedido_id);
     log(`  Insertando ${lines.length} linea(s)...`);
+
+    // Caché local de settings por artículo para este objPedido
+    const itemSettingsCache = new Map();
+
     for (let i = 0; i < lines.length; i++) {
-        if (lines[i].cantidad <= 0) continue;
-        await addSalesOrderLine(token, salesOrderNumber, lines[i], i + 1);
+        const line = lines[i];
+        if (line.cantidad <= 0) continue;
+
+        if (!itemSettingsCache.has(line.item_id)) {
+            const defaults = await getItemDefaultSettings(token, line.item_id);
+            itemSettingsCache.set(line.item_id, defaults);
+            if (defaults) {
+                log(`    Item ${line.item_id}: Almacén ${defaults.warehouse}, Sitio ${defaults.site}`);
+            }
+        }
+
+        await addSalesOrderLine(token, salesOrderNumber, line, i + 1, itemSettingsCache.get(line.item_id), objPedido.vendedor_sales_group_id);
     }
     log(`  Líneas insertadas exitosamente.`);
 
-    // PATCH garantizado: espera 10s (D365 necesita procesar internamente) y luego
+    // PATCH garantizado: espera 2s (D365 necesita procesar internamente) y luego
     // sobrescribe el responsable y los campos de referencia ANTES de marcar como enviado.
-    // Esto asegura que si el servidor se reinicia, el pedido no queda marcado como enviado
+    // Esto asegura que si el servidor se reinicia, el objPedido no queda marcado como enviado
     // sin tener los datos correctos en D365.
-    await new Promise(resolve => setTimeout(resolve, 10000));
+    await new Promise(resolve => setTimeout(resolve, 2000));
 
     const patchUrl = `${getBaseUrl()}SalesOrderHeadersV2(dataAreaId='maco',SalesOrderNumber='${salesOrderNumber}')`;
     const patchData = {
-        CustomerRequisitionNumber: pedido.pedido_numero,
-        CustomersOrderReference: pedido.vendedor_nombre,
-        SalesOrderName: pedido.cliente_nombre,
+        CustomersOrderReference: (objPedido.vendedor_nombre || '').substring(0, 60),
+        SalesOrderName: (objPedido.cliente_nombre || '').substring(0, 60),
     };
 
-    if (pedido.vendedor_personnel_number) {
-        patchData.OrderResponsiblePersonnelNumber = pedido.vendedor_personnel_number;
+    if (objPedido.pedido_numero) {
+        patchData.CustomerRequisitionNumber = objPedido.pedido_numero.substring(0, 50);
     }
 
-    const taker = pedido.vendedor_personnel_number;
+    if (objPedido.vendedor_personnel_number) {
+        patchData.OrderResponsiblePersonnelNumber = objPedido.vendedor_personnel_number;
+    }
+
+    const taker = objPedido.vendedor_personnel_number;
     if (taker) {
         patchData.OrderTakerPersonnelNumber = taker;
     }
@@ -232,13 +289,13 @@ async function processOrder(token, pedido) {
                 'Accept': 'application/json'
             }
         });
-        log(`  [PATCH OK] Resp: ${pedido.vendedor_personnel_number || '-'} | Ref: ${pedido.vendedor_nombre}`);
+        log(`  [PATCH OK] Resp: ${objPedido.vendedor_personnel_number || '-'} | Ref: ${objPedido.vendedor_nombre}`);
     } catch (patchErr) {
-        log(`  [PATCH ERROR] ${patchErr.message} (el pedido se marcará como enviado de todas formas)`);
+        log(`  [PATCH ERROR] ${patchErr.message} (el objPedido se marcará como enviado de todas formas)`);
     }
 
-    await markOrderAsSent(pedido.pedido_id, salesOrderNumber);
-    log(`  COMPLETADO -> ${pedido.pedido_numero} = ${salesOrderNumber}`);
+    await markOrderAsSent(objPedido.pedido_id, salesOrderNumber);
+    log(`  COMPLETADO -> ${objPedido.pedido_numero} = ${salesOrderNumber}`);
 
     return salesOrderNumber;
 }
@@ -251,7 +308,9 @@ async function repatchRecentOrders(token) {
     // Pedidos enviados en las últimas 4 horas con vendedor mapeado
     const result = await db.request().query(`
         SELECT TOP 30 p.dynamics_order_number, p.pedido_numero, p.vendedor_nombre, p.cliente_nombre,
-               m.personnel_number AS vendedor_personnel_number
+               m.personnel_number AS vendedor_personnel_number,
+               m.sales_group_id AS vendedor_sales_group_id,
+               m.secretario_personnel_number
         FROM [dbo].[pedidos] p
         JOIN [dbo].[vendedor_dynamics_map] m
             ON UPPER(LTRIM(RTRIM(p.vendedor_nombre))) = UPPER(LTRIM(RTRIM(m.vendedor_nombre)))
@@ -277,7 +336,8 @@ async function repatchRecentOrders(token) {
             const isCorrect = ov &&
                 ov.OrderResponsiblePersonnelNumber === row.vendedor_personnel_number &&
                 ov.CustomersOrderReference === row.vendedor_nombre &&
-                ov.SalesOrderName === row.cliente_nombre;
+                ov.SalesOrderName === row.cliente_nombre &&
+                ov.CommissionSalesRepresentativeGroupId === (row.vendedor_sales_group_id || '');
 
             if (isCorrect) continue;
 
@@ -286,6 +346,7 @@ async function repatchRecentOrders(token) {
                 CustomersOrderReference: row.vendedor_nombre,
                 CustomerRequisitionNumber: row.pedido_numero,
                 SalesOrderName: row.cliente_nombre,
+                CommissionSalesRepresentativeGroupId: row.vendedor_sales_group_id || '',
             };
 
             const taker = row.secretario_personnel_number || row.vendedor_personnel_number;
@@ -315,7 +376,7 @@ async function pollCycle() {
 
     try {
         const allPending = await getPendingOrders();
-        // Un pedido es procesable si tiene un número de cuenta (AccountNum) válido
+        // Un objPedido es procesable si tiene un número de cuenta (AccountNum) válido
         const pendingOrders = allPending.filter(p => p.cliente_accountnum);
         const sinCuenta = allPending.length - pendingOrders.length;
 
@@ -331,22 +392,22 @@ async function pollCycle() {
             return;
         }
 
-        log(`CICLO #${cycleCount}: ${pendingOrders.length} pedido(s) para enviar${sinCuenta ? ' (' + sinCuenta + ' sin AccountNum válido)' : ''}`);
+        log(`CICLO #${cycleCount}: ${pendingOrders.length} objPedido(s) para enviar${sinCuenta ? ' (' + sinCuenta + ' sin AccountNum válido)' : ''}`);
 
         let exitosos = 0;
         let fallidos = 0;
 
-        for (const pedido of pendingOrders) {
+        for (const objPedido of pendingOrders) {
             try {
-                await processOrder(token, pedido);
+                await processOrder(token, objPedido);
                 exitosos++;
             } catch (error) {
                 fallidos++;
                 const errMsg = extractErrorMessage(error);
-                log(`  ERROR en ${pedido.pedido_numero}: ${errMsg}`);
+                log(`  ERROR en ${objPedido.pedido_numero}: ${errMsg}`);
 
                 try {
-                    await markOrderAsFailed(pedido.pedido_id, errMsg);
+                    await markOrderAsFailed(objPedido.pedido_id, errMsg);
                 } catch (dbErr) {
                     log(`  Error guardando fallo en BD: ${dbErr.message}`);
                 }

@@ -1,0 +1,42 @@
+﻿server.js:58: console.log(`[RETRY] Procesando pedido ${pedido.pedido_numero}...`);
+server.js:66: console.log(`[RETRY] ÉXITO -> ${salesOrderNumber} para pedido ${pedido.pedido_numero}`);
+syncOrders.js:86: const customerAccount = pedido.cliente_accountnum;
+syncOrders.js:89: throw new Error(`No se pudo determinar una cuenta de cliente (AccountNum) para el pedido ${pedido.pedido_numero}`);
+syncOrders.js:93: if (pedido.pedido_numero) {
+syncOrders.js:94: const checkUrl = `${baseUrl}SalesOrderHeadersV2?$filter=CustomerRequisitionNumber eq '${pedido.pedido_numero}' and dataAreaId eq 'maco'&$select=SalesOrderNumber,CustomerRequisitionNumber`;
+syncOrders.js:100: log(`  [D365 DUPLICADO EVITADO] Ya existe ${existingOV} con pedido_numero=${pedido.pedido_numero}. Usando OV existente.`);
+syncOrders.js:109: SalesOrderName: pedido.cliente_nombre, // Nombre del cliente
+syncOrders.js:111: RequestedShippingDate: new Date(pedido.fecha_pedido).toISOString().split('T')[0] + 'T12:00:00Z',
+syncOrders.js:112: CustomerRequisitionNumber: pedido.pedido_numero,
+syncOrders.js:113: CustomersOrderReference: pedido.vendedor_nombre,
+syncOrders.js:114: CommissionSalesRepresentativeGroupId: pedido.vendedor_sales_group_id || '',
+syncOrders.js:117: if (pedido.vendedor_personnel_number) {
+syncOrders.js:118: headerData.OrderResponsiblePersonnelNumber = pedido.vendedor_personnel_number;
+syncOrders.js:122: const taker = pedido.vendedor_personnel_number; // Desactivamos secretario temporalmente por error SQL
+syncOrders.js:127: log(`  Creando header -> Cliente: ${customerAccount} | Pedido: ${pedido.pedido_numero} | Resp: ${pedido.vendedor_personnel_number || '-'} | Ref: ${pedido.vendedor_nombre}`);
+syncOrders.js:194: log(`--- Pedido ${pedido.pedido_numero} | ${pedido.cliente_nombre} | $${pedido.total}`);
+syncOrders.js:197: const freshPedido = await getOrderById(pedido.pedido_id);
+syncOrders.js:198: if (freshPedido && freshPedido.dynamics_order_number) {
+syncOrders.js:199: log(`  [PREVENCIÓN] El pedido ya tiene SO asignado en DB (${freshPedido.dynamics_order_number}). Omitiendo creación de header.`);
+syncOrders.js:200: pedido.dynamics_order_number = freshPedido.dynamics_order_number;
+syncOrders.js:203: let salesOrderNumber = pedido.dynamics_order_number;
+syncOrders.js:209: if (pedido.vendedor_personnel_number) {
+syncOrders.js:210: log(`  Responsable: ${pedido.vendedor_nombre} -> ${pedido.vendedor_personnel_number}`);
+syncOrders.js:211: if (pedido.secretario_personnel_number) {
+syncOrders.js:212: log(`  Secretario de ventas: ${pedido.secretario_personnel_number}`);
+syncOrders.js:214: log(`  ADVERTENCIA: No hay secretario asignado para ${pedido.vendedor_nombre}. Se usará el mismo vendedor como OrderTaker.`);
+syncOrders.js:217: log(`  ADVERTENCIA: No se encontró mapeo de PersonnelNumber para el vendedor: ${pedido.vendedor_nombre}`);
+syncOrders.js:224: await saveOrderNumber(pedido.pedido_id, salesOrderNumber);
+syncOrders.js:227: const lines = await getOrderLines(pedido.pedido_id);
+syncOrders.js:245: await addSalesOrderLine(token, salesOrderNumber, line, i + 1, itemSettingsCache.get(line.item_id), pedido.vendedor_sales_group_id);
+syncOrders.js:257: CustomerRequisitionNumber: pedido.pedido_numero,
+syncOrders.js:258: CustomersOrderReference: pedido.vendedor_nombre,
+syncOrders.js:259: SalesOrderName: pedido.cliente_nombre,
+syncOrders.js:262: if (pedido.vendedor_personnel_number) {
+syncOrders.js:263: patchData.OrderResponsiblePersonnelNumber = pedido.vendedor_personnel_number;
+syncOrders.js:266: const taker = pedido.vendedor_personnel_number;
+syncOrders.js:279: log(`  [PATCH OK] Resp: ${pedido.vendedor_personnel_number || '-'} | Ref: ${pedido.vendedor_nombre}`);
+syncOrders.js:284: await markOrderAsSent(pedido.pedido_id, salesOrderNumber);
+syncOrders.js:285: log(`  COMPLETADO -> ${pedido.pedido_numero} = ${salesOrderNumber}`);
+syncOrders.js:394: log(`  ERROR en ${pedido.pedido_numero}: ${errMsg}`);
+syncOrders.js:397: await markOrderAsFailed(pedido.pedido_id, errMsg);
