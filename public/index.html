@@ -143,6 +143,12 @@
                     <input type="date" id="fechaHasta">
                 </div>
                 <div class="filter-group">
+                    <label>Grupo</label>
+                    <select id="filtroGrupo" onchange="aplicarFiltros()">
+                        <option value="todos">Todos</option>
+                    </select>
+                </div>
+                <div class="filter-group">
                     <label>Vendedor</label>
                     <select id="filtroVendedor" onchange="aplicarFiltros()">
                         <option value="todos">Todos</option>

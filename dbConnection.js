@@ -74,12 +74,15 @@ async function ensureColumnExists() {
 async function getAllOrders() {
     const db = await getPool();
     const result = await db.request().query(`
-        SELECT pedido_id, pedido_numero, cliente_nombre, cliente_rnc,
-               vendedor_nombre, fecha_pedido, total,
-               ISNULL(enviado_dynamics, 0) AS enviado_dynamics,
-               dynamics_order_number, sync_error
-        FROM [dbo].[pedidos]
-        ORDER BY fecha_pedido DESC
+        SELECT p.pedido_id, p.pedido_numero, p.cliente_nombre, p.cliente_rnc,
+               p.vendedor_nombre, p.fecha_pedido, p.total,
+               ISNULL(p.enviado_dynamics, 0) AS enviado_dynamics,
+               p.dynamics_order_number, p.sync_error,
+               m.sales_group_id AS vendedor_grupo
+        FROM [dbo].[pedidos] p
+        LEFT JOIN [dbo].[vendedor_dynamics_map] m
+            ON UPPER(LTRIM(RTRIM(p.vendedor_nombre))) = UPPER(LTRIM(RTRIM(m.vendedor_nombre)))
+        ORDER BY p.fecha_pedido DESC
     `);
     return result.recordset;
 }

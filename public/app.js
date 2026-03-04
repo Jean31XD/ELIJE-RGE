@@ -56,6 +56,10 @@ window.addEventListener('DOMContentLoaded', () => {
         th.addEventListener('click', () => sortarPedidos(th.dataset.col));
     });
 
+    // Al cambiar grupo, actualizar la lista de vendedores
+    const filtroGrupo = document.getElementById('filtroGrupo');
+    if (filtroGrupo) filtroGrupo.addEventListener('change', poblarVendedores);
+
     // Filtros de Cobros
     const searchCobros = document.getElementById('searchCobros');
     if (searchCobros) searchCobros.addEventListener('input', aplicarFiltrosCobros);
@@ -135,6 +139,7 @@ async function cargarPedidos() {
         if (!res.ok) throw new Error('Error del servidor');
         todosLosPedidos = await res.json();
         loader.classList.add('hidden');
+        poblarGrupos();
         poblarVendedores();
         aplicarFiltros();
         renderizarKpisPedidos();
@@ -154,30 +159,48 @@ async function cargarPedidosSilencioso() {
         const hashActual = todosLosPedidos.map(p => p.pedido_id + p.enviado_dynamics + (p.sync_error || '')).join('|');
         if (hashNuevos !== hashActual) {
             todosLosPedidos = nuevos;
+            poblarGrupos();
             poblarVendedores();
             aplicarFiltros(); // llama renderizarKpisPedidos internamente
         }
     } catch {}
 }
 
+function poblarGrupos() {
+    const select = document.getElementById('filtroGrupo');
+    if (!select) return;
+    const valorActual = select.value;
+    const grupos = [...new Set(todosLosPedidos.map(p => p.vendedor_grupo).filter(Boolean))].sort();
+    select.innerHTML = '<option value="todos">Todos</option>' +
+        grupos.map(g => `<option value="${escapeHtml(g)}">${escapeHtml(g)}</option>`).join('');
+    if (grupos.includes(valorActual)) select.value = valorActual;
+}
+
 function poblarVendedores() {
+    const grupoActual = document.getElementById('filtroGrupo')?.value || 'todos';
     const select = document.getElementById('filtroVendedor');
     if (!select) return;
     const valorActual = select.value;
-    const vendedores = [...new Set(todosLosPedidos.map(p => p.vendedor_nombre).filter(Boolean))].sort();
+    // Si hay un grupo seleccionado, mostrar solo los vendedores de ese grupo
+    const base = grupoActual !== 'todos'
+        ? todosLosPedidos.filter(p => p.vendedor_grupo === grupoActual)
+        : todosLosPedidos;
+    const vendedores = [...new Set(base.map(p => p.vendedor_nombre).filter(Boolean))].sort();
     select.innerHTML = '<option value="todos">Todos</option>' +
         vendedores.map(v => `<option value="${escapeHtml(v)}">${escapeHtml(v)}</option>`).join('');
     if (vendedores.includes(valorActual)) select.value = valorActual;
+    else select.value = 'todos';
 }
 
 function renderizarKpisPedidos() {
     const estadoActivo = document.getElementById('filtroEstado')?.value || 'todos';
 
-    // Aplicar búsqueda, fechas y vendedor (todo menos estado) para que los conteos
-    // reflejen el contexto actual del usuario
+    // Aplicar búsqueda, fechas, grupo y vendedor (todo menos estado) para que
+    // los conteos reflejen el contexto actual del usuario
     const busqueda = document.getElementById('searchGlobal')?.value.toLowerCase().trim() || '';
     const desde    = document.getElementById('fechaDesde')?.value || '';
     const hasta    = document.getElementById('fechaHasta')?.value || '';
+    const grupo    = document.getElementById('filtroGrupo')?.value || 'todos';
     const vendedor = document.getElementById('filtroVendedor')?.value || 'todos';
 
     const base = todosLosPedidos.filter(p => {
@@ -188,6 +211,7 @@ function renderizarKpisPedidos() {
         const fecha = p.fecha_pedido ? p.fecha_pedido.split('T')[0] : '';
         if (desde && fecha < desde) return false;
         if (hasta && fecha > hasta) return false;
+        if (grupo !== 'todos' && p.vendedor_grupo !== grupo) return false;
         if (vendedor !== 'todos' && p.vendedor_nombre !== vendedor) return false;
         return true;
     });
@@ -230,6 +254,7 @@ function aplicarFiltros() {
     const hasta = document.getElementById('fechaHasta').value;
     const estado = document.getElementById('filtroEstado').value;
     const vendedor = document.getElementById('filtroVendedor')?.value || 'todos';
+    const grupo = document.getElementById('filtroGrupo')?.value || 'todos';
 
     pedidosFiltrados = todosLosPedidos.filter(p => {
         // Texto
@@ -242,6 +267,9 @@ function aplicarFiltros() {
         const fecha = p.fecha_pedido ? p.fecha_pedido.split('T')[0] : '';
         if (desde && fecha < desde) return false;
         if (hasta && fecha > hasta) return false;
+
+        // Grupo (Comercial / Proyectos)
+        if (grupo !== 'todos' && p.vendedor_grupo !== grupo) return false;
 
         // Vendedor
         if (vendedor !== 'todos' && p.vendedor_nombre !== vendedor) return false;
@@ -681,6 +709,8 @@ function limpiarFiltros() {
     document.getElementById('fechaDesde').value = '';
     document.getElementById('fechaHasta').value = '';
     document.getElementById('filtroEstado').value = 'todos';
+    const filtroGrupo = document.getElementById('filtroGrupo');
+    if (filtroGrupo) filtroGrupo.value = 'todos';
     const filtroVendedor = document.getElementById('filtroVendedor');
     if (filtroVendedor) filtroVendedor.value = 'todos';
     pedidoSortCol = 'fecha_pedido';
