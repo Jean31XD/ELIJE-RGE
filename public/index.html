@@ -442,60 +442,61 @@
         </div>
 
         <div id="vista-tracking" class="hidden">
-            <!-- Filtros -->
-            <div style="padding: 0 32px 16px; display: flex; align-items: flex-end; justify-content: space-between; gap: 20px; flex-wrap: wrap;">
-                <p style="color: var(--text-secondary); margin: 0; flex: 1; align-self: center;">Visualiza la ubicación y actividad reciente de los vendedores en tiempo real.</p>
-                <div style="display: flex; gap: 12px; flex-wrap: wrap; align-items: flex-end;">
-                    <div class="filter-group" style="min-width: 220px;">
-                        <label>Vendedor</label>
-                        <select id="filtroVendedorTracking" onchange="aplicarFiltrosTracking()">
-                            <option value="todos">Todos los vendedores</option>
-                        </select>
-                    </div>
-                    <div class="filter-group">
-                        <label>Fecha</label>
-                        <input type="date" id="filtroFechaTracking" onchange="cargarTracking()">
-                    </div>
-                    <div class="filter-group">
-                        <label>Acción</label>
-                        <select id="filtroAccionTracking" onchange="aplicarFiltrosTracking()">
-                            <option value="todos">Todas las acciones</option>
-                            <option value="ORDER">Pedidos (ORDER)</option>
-                            <option value="CHECKIN">Check-ins (CHECKIN)</option>
-                            <option value="PERIODIC">Periódico</option>
-                        </select>
-                    </div>
-                </div>
-            </div>
 
-            <!-- Barra de estadísticas + última actualización -->
-            <div style="padding: 0 32px 16px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px;">
-                <div id="tracking-stats-bar" style="display: flex; gap: 8px; flex-wrap: wrap;"></div>
-                <div style="display: flex; align-items: center; gap: 10px;">
-                    <span id="trackingLastUpdated" style="font-size: 12px; color: var(--text-secondary);"></span>
-                    <button id="btnCentrarMapa" onclick="centrarMapa()" class="hidden"
-                        style="font-size: 12px; padding: 5px 14px; border: 1px solid var(--border); border-radius: 8px; background: white; color: var(--primary); cursor: pointer; font-weight: 500;">
-                        ⌖ Centrar mapa
-                    </button>
+            <!-- Filtros -->
+            <section class="filters-bar">
+                <div class="filter-group" style="min-width: 200px;">
+                    <label>Vendedor</label>
+                    <select id="filtroVendedorTracking" onchange="aplicarFiltrosTracking()">
+                        <option value="todos">Todos los vendedores</option>
+                    </select>
+                </div>
+                <div class="filter-group">
+                    <label>Desde</label>
+                    <input type="date" id="filtroDesdeTracking">
+                </div>
+                <div class="filter-group">
+                    <label>Hasta</label>
+                    <input type="date" id="filtroHastaTracking">
+                </div>
+                <div class="filter-group">
+                    <label>Tipo</label>
+                    <select id="filtroAccionTracking" onchange="aplicarFiltrosTracking()">
+                        <option value="todos">Todos los tipos</option>
+                        <option value="ORDER">Pedido</option>
+                        <option value="CHECKIN">Check-in</option>
+                        <option value="PERIODIC">Periódico</option>
+                    </select>
+                </div>
+                <button class="btn btn-primary" onclick="cargarTracking()">Buscar</button>
+                <button class="btn btn-ghost" onclick="limpiarFiltrosTracking()">Limpiar</button>
+            </section>
+
+            <!-- Barra inferior: stats + última actualización + centrar mapa -->
+            <div class="tracking-infobar">
+                <div id="tracking-stats-bar" class="tracking-stats"></div>
+                <div class="tracking-meta">
+                    <span id="trackingLastUpdated"></span>
+                    <button id="btnCentrarMapa" onclick="centrarMapa()" class="btn-centrar hidden">Centrar mapa</button>
                 </div>
             </div>
 
             <!-- Mapa -->
-            <section class="table-card" style="margin: 0 32px 24px; padding: 0; position: relative; z-index: 1; border-radius: 12px; overflow: hidden; box-shadow: 0 2px 12px rgba(0,0,0,0.08);">
-                <div id="map" style="height: 520px; width: 100%;"></div>
-            </section>
+            <div class="tracking-map-wrapper">
+                <div id="map"></div>
+            </div>
 
-            <!-- Tabla de Logs de Tracking -->
-            <section class="table-card" style="margin: 0 32px;">
+            <!-- Tabla -->
+            <section class="table-card tracking-table-card">
                 <div class="table-wrapper">
                     <table>
                         <thead>
                             <tr>
                                 <th>Vendedor</th>
-                                <th>Acción</th>
-                                <th>OV Dynamics</th>
-                                <th>Ubicación</th>
-                                <th>Fecha/Hora</th>
+                                <th>Tipo</th>
+                                <th>Orden de Venta</th>
+                                <th>Coordenadas</th>
+                                <th>Fecha / Hora</th>
                             </tr>
                         </thead>
                         <tbody id="tracking-body"></tbody>
@@ -503,17 +504,36 @@
                 </div>
                 <div id="tracking-loading" class="loading-state hidden">
                     <div class="spinner"></div>
-                    <p>Cargando datos de tracking...</p>
+                    <p>Consultando registros...</p>
                 </div>
                 <div id="tracking-empty" class="empty-state hidden">
-                    <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="1.5">
+                    <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#cbd5e1" stroke-width="1.5">
                         <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path>
                         <circle cx="12" cy="10" r="3"></circle>
                     </svg>
-                    <p>No hay registros de tracking disponibles</p>
+                    <p>No hay registros para el período seleccionado</p>
                 </div>
             </section>
-            <div id="tracking-pagination-container" class="pagination-bar" style="margin: 20px 32px 0;"></div>
+            <div id="tracking-pagination-container" class="pagination-bar tracking-pagination"></div>
+        </div>
+
+        <!-- Modal Detalle OV (desde Tracking) -->
+        <div id="modal-ov-tracking" class="modal hidden">
+            <div class="modal-content modal-wide">
+                <div class="modal-header">
+                    <div>
+                        <p style="font-size:11px;font-weight:500;color:var(--text-secondary);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:2px;">Orden de Venta</p>
+                        <h2 id="modal-ov-titulo" style="font-size:20px;"></h2>
+                    </div>
+                    <button class="btn-close" onclick="cerrarDetalleOV()">&times;</button>
+                </div>
+                <div id="modal-ov-header" style="padding: 20px 28px; border-bottom: 1px solid var(--border); background: #f8fafc;"></div>
+                <div id="modal-ov-loading" class="loading-state">
+                    <div class="spinner"></div>
+                    <p>Cargando detalle...</p>
+                </div>
+                <div id="modal-ov-body" style="max-height: 420px; overflow-y: auto;"></div>
+            </div>
         </div>
         </div>
 

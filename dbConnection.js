@@ -334,9 +334,13 @@ async function getTrackingLogs(filters = {}) {
 
     let whereClause = '1=1';
 
-    if (filters.fecha) {
-        whereClause += ` AND CAST(t.created_at AS DATE) = @fecha`;
-        req.input('fecha', sql.Date, new Date(filters.fecha));
+    if (filters.fechaDesde) {
+        whereClause += ` AND CAST(t.created_at AS DATE) >= @fechaDesde`;
+        req.input('fechaDesde', sql.Date, new Date(filters.fechaDesde));
+    }
+    if (filters.fechaHasta) {
+        whereClause += ` AND CAST(t.created_at AS DATE) <= @fechaHasta`;
+        req.input('fechaHasta', sql.Date, new Date(filters.fechaHasta));
     }
     if (filters.vendedor_id) {
         whereClause += ` AND t.vendedor_id = @vendedorId`;
@@ -355,7 +359,14 @@ async function getTrackingLogs(filters = {}) {
                 AND ABS(DATEDIFF(MINUTE, p.fecha_pedido, t.created_at)) < 15
                 AND t.[action] = 'ORDER'
                 ORDER BY ABS(DATEDIFF(SECOND, p.fecha_pedido, t.created_at))
-               ) as dynamics_order_number
+               ) as dynamics_order_number,
+               (SELECT TOP 1 p.pedido_id
+                FROM [dbo].[pedidos] p
+                WHERE p.vendedor_nombre = t.vendedor_nombre
+                AND ABS(DATEDIFF(MINUTE, p.fecha_pedido, t.created_at)) < 15
+                AND t.[action] = 'ORDER'
+                ORDER BY ABS(DATEDIFF(SECOND, p.fecha_pedido, t.created_at))
+               ) as pedido_id
         FROM [dbo].[tracking_logs] t
         WHERE ${whereClause}
         ORDER BY t.created_at DESC

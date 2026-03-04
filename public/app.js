@@ -1426,14 +1426,13 @@ function limpiarFiltrosCobros() {
 async function cargarTracking(isAutoRefresh = false) {
     const loading = document.getElementById('tracking-loading');
     const empty = document.getElementById('tracking-empty');
+    const today = new Date().toISOString().split('T')[0];
 
-    // Inicializar fecha si está vacía
-    const inputFecha = document.getElementById('filtroFechaTracking');
-    if (inputFecha && !inputFecha.value) {
-        inputFecha.value = new Date().toISOString().split('T')[0];
-    }
+    const desdeEl = document.getElementById('filtroDesdeTracking');
+    const hastaEl = document.getElementById('filtroHastaTracking');
+    if (desdeEl && !desdeEl.value) desdeEl.value = today;
+    if (hastaEl && !hastaEl.value) hastaEl.value = today;
 
-    // En carga manual mostramos spinner; en auto-refresh actualizamos silenciosamente
     if (!isAutoRefresh) {
         document.getElementById('tracking-body').innerHTML = '';
         loading.classList.remove('hidden');
@@ -1441,7 +1440,6 @@ async function cargarTracking(isAutoRefresh = false) {
         mapBoundsLocked = false;
     }
 
-    // Inicializar mapa si no existe
     if (!trackingMap) {
         trackingMap = L.map('map', { zoomControl: true }).setView([18.4861, -69.9312], 12);
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
@@ -1449,29 +1447,27 @@ async function cargarTracking(isAutoRefresh = false) {
             maxZoom: 19
         }).addTo(trackingMap);
 
-        // Detectar interacción manual del usuario con el mapa
         trackingMap.on('movestart', () => {
             if (_suppressMapLock) return;
             mapBoundsLocked = true;
-            const btn = document.getElementById('btnCentrarMapa');
-            if (btn) btn.classList.remove('hidden');
+            document.getElementById('btnCentrarMapa')?.classList.remove('hidden');
         });
     }
 
     try {
-        const fecha = inputFecha ? inputFecha.value : '';
-        const url = fecha ? `/api/tracking?fecha=${fecha}` : '/api/tracking';
-        const res = await fetch(url);
+        const params = new URLSearchParams();
+        if (desdeEl?.value) params.set('fechaDesde', desdeEl.value);
+        if (hastaEl?.value) params.set('fechaHasta', hastaEl.value);
+
+        const res = await fetch(`/api/tracking?${params.toString()}`);
         if (!res.ok) throw new Error('Error al cargar datos de tracking');
         todosLosTracking = await res.json();
 
         if (!isAutoRefresh) loading.classList.add('hidden');
 
-        // Actualizar timestamp de última actualización
         trackingLastUpdated = new Date();
         actualizarIndicadorTiempo();
 
-        // Poblar selector de vendedores solo en carga manual para no interrumpir selección
         if (!isAutoRefresh) {
             const select = document.getElementById('filtroVendedorTracking');
             const vendedorActual = select.value;
@@ -1489,6 +1485,7 @@ async function cargarTracking(isAutoRefresh = false) {
 
         if (todosLosTracking.length === 0 && !isAutoRefresh) {
             empty.classList.remove('hidden');
+            renderEstadisticasTracking([]);
             return;
         }
 
@@ -1496,10 +1493,21 @@ async function cargarTracking(isAutoRefresh = false) {
 
     } catch (err) {
         if (!isAutoRefresh) {
-            loading.innerHTML = `<p style="color: var(--danger);">Error: ${err.message}</p>`;
+            loading.innerHTML = `<p style="color:var(--danger);padding:16px;">Error: ${err.message}</p>`;
         }
         console.error(err);
     }
+}
+
+function limpiarFiltrosTracking() {
+    const today = new Date().toISOString().split('T')[0];
+    const desdeEl = document.getElementById('filtroDesdeTracking');
+    const hastaEl = document.getElementById('filtroHastaTracking');
+    if (desdeEl) desdeEl.value = today;
+    if (hastaEl) hastaEl.value = today;
+    document.getElementById('filtroVendedorTracking').value = 'todos';
+    document.getElementById('filtroAccionTracking').value = 'todos';
+    cargarTracking();
 }
 
 function actualizarIndicadorTiempo() {
@@ -1508,25 +1516,20 @@ function actualizarIndicadorTiempo() {
     const diffSec = Math.floor((new Date() - trackingLastUpdated) / 1000);
     if (diffSec < 10) el.textContent = 'Actualizado hace unos segundos';
     else if (diffSec < 60) el.textContent = `Actualizado hace ${diffSec}s`;
-    else el.textContent = `Actualizado hace ${Math.floor(diffSec / 60)}min`;
+    else el.textContent = `Actualizado hace ${Math.floor(diffSec / 60)} min`;
 }
 
 function centrarMapa() {
     mapBoundsLocked = false;
     document.getElementById('btnCentrarMapa')?.classList.add('hidden');
-    if (trackingMarkers.length > 0) {
-        _suppressMapLock = true;
-        const group = new L.featureGroup(trackingMarkers);
-        trackingMap.fitBounds(group.getBounds().pad(0.1));
-        trackingMap.once('moveend', () => { _suppressMapLock = false; });
-    }
+    fitBoundsTracking();
 }
 
 function fitBoundsTracking() {
     if (!trackingMap || trackingMarkers.length === 0) return;
     _suppressMapLock = true;
     const group = new L.featureGroup(trackingMarkers);
-    trackingMap.fitBounds(group.getBounds().pad(0.1));
+    trackingMap.fitBounds(group.getBounds().pad(0.12));
     trackingMap.once('moveend', () => { _suppressMapLock = false; });
 }
 
@@ -1542,60 +1545,64 @@ function renderEstadisticasTracking(datos) {
 
     bar.innerHTML = `
         <span class="stat-chip">${datos.length} registros</span>
-        <span class="stat-chip stat-chip-order">🛒 ${orders} pedido${orders !== 1 ? 's' : ''}</span>
-        <span class="stat-chip stat-chip-checkin">✓ ${checkins} check-in${checkins !== 1 ? 's' : ''}</span>
-        <span class="stat-chip stat-chip-periodic">⏱ ${periodicos} periódico${periodicos !== 1 ? 's' : ''}</span>
-        <span class="stat-chip stat-chip-vendor">👤 ${vendedores} vendedor${vendedores !== 1 ? 'es' : ''}</span>
+        <span class="stat-chip stat-chip-order">${orders} pedido${orders !== 1 ? 's' : ''}</span>
+        <span class="stat-chip stat-chip-checkin">${checkins} check-in${checkins !== 1 ? 's' : ''}</span>
+        <span class="stat-chip stat-chip-periodic">${periodicos} periódico${periodicos !== 1 ? 's' : ''}</span>
+        <span class="stat-chip stat-chip-vendor">${vendedores} vendedor${vendedores !== 1 ? 'es' : ''}</span>
     `;
 }
 
+const _actionStyle = {
+    ORDER:    { bg: '#f0fdf4', color: '#166534', border: '#bbf7d0', dot: '#16a34a' },
+    CHECKIN:  { bg: '#eff6ff', color: '#1d4ed8', border: '#bfdbfe', dot: '#2563eb' },
+    PERIODIC: { bg: '#f8fafc', color: '#64748b', border: '#e2e8f0', dot: '#94a3b8' }
+};
+
 function renderTablaTracking(datos) {
     const body = document.getElementById('tracking-body');
-    const total = datos.length;
 
-    if (total === 0) {
-        body.innerHTML = '<tr><td colspan="5" class="text-center" style="padding: 32px; color: var(--text-secondary);">No hay registros disponibles para el filtro seleccionado</td></tr>';
+    if (datos.length === 0) {
+        body.innerHTML = '<tr><td colspan="5" style="text-align:center;padding:40px;color:var(--text-secondary);">No hay registros para el período seleccionado</td></tr>';
         renderizarPaginacionTracking(0);
         renderEstadisticasTracking([]);
         return;
     }
 
-    const totalPaginas = Math.ceil(total / trackingRegistrosPorPagina);
+    const totalPaginas = Math.ceil(datos.length / trackingRegistrosPorPagina);
     const inicio = (trackingPaginaActual - 1) * trackingRegistrosPorPagina;
     const datosPagina = datos.slice(inicio, inicio + trackingRegistrosPorPagina);
-
-    const actionStyle = {
-        ORDER:    { bg: '#f0fdf4', color: '#166534', border: '#bbf7d0' },
-        CHECKIN:  { bg: '#eff6ff', color: '#1d4ed8', border: '#bfdbfe' },
-        PERIODIC: { bg: '#f8fafc', color: '#64748b', border: '#e2e8f0' }
-    };
 
     body.innerHTML = datosPagina.map(t => {
         const fecha = t.created_at
             ? new Date(t.created_at).toLocaleString('es-DO', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })
-            : '-';
+            : '—';
 
-        const as = actionStyle[t.action] || actionStyle.PERIODIC;
-        const actionBadge = `<span style="padding:3px 10px;border-radius:999px;font-size:10px;font-weight:600;background:${as.bg};color:${as.color};border:1px solid ${as.border};">${escapeHtml(t.action)}</span>`;
+        const as = _actionStyle[t.action] || _actionStyle.PERIODIC;
+        const actionBadge = `<span class="tracking-action-badge" style="background:${as.bg};color:${as.color};border-color:${as.border};">${escapeHtml(t.action)}</span>`;
 
-        const ovCell = t.dynamics_order_number
-            ? `<span style="padding:3px 10px;border-radius:6px;font-size:11px;font-weight:600;background:#f0fdf4;color:#166534;border:1px solid #bbf7d0;">📋 ${escapeHtml(t.dynamics_order_number)}</span>`
-            : '<span style="color:var(--text-secondary);">—</span>';
+        let ovCell;
+        if (t.dynamics_order_number && t.pedido_id) {
+            ovCell = `<a href="#" class="ov-link" onclick="abrirDetalleOV(${t.pedido_id},'${escapeHtml(t.dynamics_order_number)}');return false;">${escapeHtml(t.dynamics_order_number)}</a>`;
+        } else if (t.dynamics_order_number) {
+            ovCell = `<span class="dynamics-num">${escapeHtml(t.dynamics_order_number)}</span>`;
+        } else {
+            ovCell = '<span style="color:var(--text-secondary);">—</span>';
+        }
 
         const coordCell = (t.latitude && t.longitude)
-            ? `<a href="https://www.google.com/maps?q=${t.latitude},${t.longitude}" target="_blank" style="color:var(--primary);font-size:12px;font-family:monospace;text-decoration:none;" title="Ver en Google Maps">📍 ${parseFloat(t.latitude).toFixed(5)}, ${parseFloat(t.longitude).toFixed(5)}</a>`
+            ? `<a href="https://www.google.com/maps?q=${t.latitude},${t.longitude}" target="_blank" class="coord-link">${parseFloat(t.latitude).toFixed(4)}, ${parseFloat(t.longitude).toFixed(4)}</a>`
             : '—';
 
         return `
             <tr>
                 <td>
                     <div style="font-weight:600;">${escapeHtml(t.vendedor_nombre)}</div>
-                    <div style="font-size:11px;color:var(--text-secondary);">ID: ${escapeHtml(t.vendedor_id)}</div>
+                    <div class="text-muted" style="font-size:11px;">ID: ${escapeHtml(t.vendedor_id)}</div>
                 </td>
                 <td>${actionBadge}</td>
                 <td>${ovCell}</td>
                 <td>${coordCell}</td>
-                <td style="white-space:nowrap;">${fecha}</td>
+                <td style="white-space:nowrap;color:var(--text-secondary);font-size:13px;">${fecha}</td>
             </tr>
         `;
     }).join('');
@@ -1605,15 +1612,14 @@ function renderTablaTracking(datos) {
 }
 
 function renderMarcadoresTracking(datos) {
-    // Limpiar marcadores y polyline previos
     trackingMarkers.forEach(m => { if (trackingMap.hasLayer(m)) trackingMap.removeLayer(m); });
     trackingMarkers = [];
     if (trackingPolyline) { trackingMap.removeLayer(trackingPolyline); trackingPolyline = null; }
 
-    const markerCfg = {
-        ORDER:    { bg: '#16a34a', border: '#14532d', icon: '🛒', size: 34 },
-        CHECKIN:  { bg: '#2563eb', border: '#1e3a8a', icon: '✓',  size: 28 },
-        PERIODIC: { bg: '#94a3b8', border: '#64748b', icon: '•',  size: 18 }
+    const markerStyle = {
+        ORDER:    { fillColor: '#16a34a', radius: 10, weight: 2 },
+        CHECKIN:  { fillColor: '#2563eb', radius: 7,  weight: 2 },
+        PERIODIC: { fillColor: '#94a3b8', radius: 4,  weight: 1 }
     };
 
     const coordsRuta = [];
@@ -1621,46 +1627,50 @@ function renderMarcadoresTracking(datos) {
     datos.forEach(t => {
         if (!t.latitude || !t.longitude) return;
 
-        const cfg = markerCfg[t.action] || markerCfg.PERIODIC;
-        const sz = cfg.size;
-
-        const icon = L.divIcon({
-            className: '',
-            html: `<div style="width:${sz}px;height:${sz}px;background:${cfg.bg};border:2px solid ${cfg.border};border-radius:50%;display:flex;align-items:center;justify-content:center;color:white;font-size:${Math.round(sz * 0.42)}px;box-shadow:0 2px 8px rgba(0,0,0,0.35);cursor:pointer;">${cfg.icon}</div>`,
-            iconSize: [sz, sz],
-            iconAnchor: [sz / 2, sz / 2],
-            popupAnchor: [0, -(sz / 2 + 4)]
-        });
-
-        const marker = L.marker([t.latitude, t.longitude], { icon }).addTo(trackingMap);
+        const ms = markerStyle[t.action] || markerStyle.PERIODIC;
+        const marker = L.circleMarker([t.latitude, t.longitude], {
+            radius: ms.radius,
+            fillColor: ms.fillColor,
+            color: '#ffffff',
+            weight: ms.weight,
+            opacity: 1,
+            fillOpacity: 0.92
+        }).addTo(trackingMap);
 
         const fecha = new Date(t.created_at).toLocaleString('es-DO', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' });
-        const ovLine = t.dynamics_order_number
-            ? `<div style="margin-top:6px;padding:4px 8px;background:#f0fdf4;border-radius:6px;font-size:11px;color:#166534;font-weight:600;border:1px solid #bbf7d0;">📋 OV: ${escapeHtml(t.dynamics_order_number)}</div>`
+        const as = _actionStyle[t.action] || _actionStyle.PERIODIC;
+
+        const ovPopupLine = t.dynamics_order_number
+            ? (t.pedido_id
+                ? `<div style="margin-top:8px;"><a href="#" onclick="trackingMap.closePopup();abrirDetalleOV(${t.pedido_id},'${escapeHtml(t.dynamics_order_number)}');return false;" style="font-size:12px;font-weight:600;color:var(--primary);text-decoration:none;">Ver OV ${escapeHtml(t.dynamics_order_number)}</a></div>`
+                : `<div style="margin-top:6px;font-size:12px;font-weight:600;color:#166534;">OV: ${escapeHtml(t.dynamics_order_number)}</div>`)
             : '';
 
         marker.bindPopup(`
-            <div style="font-family:'Inter',sans-serif;min-width:190px;line-height:1.5;">
-                <div style="font-weight:700;font-size:13px;margin-bottom:4px;">${escapeHtml(t.vendedor_nombre)}</div>
-                <span style="padding:2px 10px;border-radius:999px;font-size:10px;font-weight:600;background:${cfg.bg};color:white;">${escapeHtml(t.action)}</span>
-                ${ovLine}
-                <div style="margin-top:6px;font-size:11px;color:#64748b;">🕐 ${fecha}</div>
-                <a href="https://www.google.com/maps?q=${t.latitude},${t.longitude}" target="_blank" style="display:inline-block;margin-top:6px;font-size:11px;color:#2563eb;text-decoration:none;font-weight:500;">📍 Ver en Google Maps</a>
+            <div style="font-family:'Inter',sans-serif;min-width:180px;line-height:1.6;">
+                <div style="font-weight:700;font-size:13px;color:var(--text);">${escapeHtml(t.vendedor_nombre)}</div>
+                <div style="margin-top:4px;">
+                    <span style="display:inline-block;padding:2px 8px;border-radius:4px;font-size:10px;font-weight:600;letter-spacing:0.3px;background:${as.bg};color:${as.color};border:1px solid ${as.border};">${escapeHtml(t.action)}</span>
+                </div>
+                ${ovPopupLine}
+                <div style="margin-top:6px;font-size:11px;color:#64748b;">${fecha}</div>
+                <div style="margin-top:6px;border-top:1px solid #f1f5f9;padding-top:6px;">
+                    <a href="https://www.google.com/maps?q=${t.latitude},${t.longitude}" target="_blank" style="font-size:11px;color:var(--primary);text-decoration:none;">Ver en Google Maps</a>
+                </div>
             </div>
-        `, { maxWidth: 240 });
+        `, { maxWidth: 220 });
 
         trackingMarkers.push(marker);
         coordsRuta.push([t.latitude, t.longitude]);
     });
 
-    // Ruta cronológica cuando se filtra por un vendedor específico
     const vendedorId = document.getElementById('filtroVendedorTracking').value;
     if (vendedorId !== 'todos' && coordsRuta.length >= 2) {
         trackingPolyline = L.polyline(coordsRuta, {
             color: '#2563eb',
-            weight: 3,
-            opacity: 0.7,
-            dashArray: '8, 8',
+            weight: 2.5,
+            opacity: 0.65,
+            dashArray: '6, 8',
             lineJoin: 'round'
         }).addTo(trackingMap);
     }
@@ -1672,7 +1682,6 @@ function aplicarFiltrosTracking(isAutoRefresh = false) {
     const vendedorId = document.getElementById('filtroVendedorTracking').value;
     const accionFiltro = document.getElementById('filtroAccionTracking').value;
 
-    // Fecha ya se filtró en el servidor; aquí solo filtramos vendedor y acción
     trackingFiltrados = todosLosTracking.filter(t => {
         if (vendedorId !== 'todos' && t.vendedor_id !== vendedorId) return false;
         if (accionFiltro !== 'todos' && t.action !== accionFiltro) return false;
@@ -1685,10 +1694,7 @@ function aplicarFiltrosTracking(isAutoRefresh = false) {
     renderTablaTracking(trackingFiltrados);
     renderMarcadoresTracking(datosOrdenados);
 
-    // Solo ajustar vista del mapa si el usuario no lo ha movido manualmente
-    if (!mapBoundsLocked) {
-        fitBoundsTracking();
-    }
+    if (!mapBoundsLocked) fitBoundsTracking();
 }
 
 function cambiarPaginaTracking(pagina) {
@@ -1701,16 +1707,103 @@ function cambiarPaginaTracking(pagina) {
 function renderizarPaginacionTracking(totalPaginas) {
     const container = document.getElementById('tracking-pagination-container');
     if (!container) return;
-
     if (totalPaginas <= 1) { container.innerHTML = ''; return; }
-
     container.innerHTML = `
         <div class="pagination-controls">
             <button onclick="cambiarPaginaTracking(${trackingPaginaActual - 1})" ${trackingPaginaActual === 1 ? 'disabled' : ''}>Anterior</button>
-            <span style="margin: 0 15px;">Página ${trackingPaginaActual} de ${totalPaginas}</span>
+            <span>Página ${trackingPaginaActual} de ${totalPaginas}</span>
             <button onclick="cambiarPaginaTracking(${trackingPaginaActual + 1})" ${trackingPaginaActual === totalPaginas ? 'disabled' : ''}>Siguiente</button>
         </div>
     `;
+}
+
+// === Detalle de OV desde Tracking ===
+async function abrirDetalleOV(pedidoId, ovNumber) {
+    if (!pedidoId) return;
+    const modal = document.getElementById('modal-ov-tracking');
+    const titleEl = document.getElementById('modal-ov-titulo');
+    const headerEl = document.getElementById('modal-ov-header');
+    const bodyEl = document.getElementById('modal-ov-body');
+    const loadingEl = document.getElementById('modal-ov-loading');
+
+    titleEl.textContent = ovNumber;
+    headerEl.innerHTML = '';
+    bodyEl.innerHTML = '';
+    loadingEl.classList.remove('hidden');
+    modal.classList.remove('hidden');
+
+    try {
+        const [pedidoRes, lineasRes] = await Promise.all([
+            fetch(`/api/pedidos/${pedidoId}`),
+            fetch(`/api/pedidos/${pedidoId}/lineas`)
+        ]);
+        const pedido = await pedidoRes.json();
+        const lineas = await lineasRes.json();
+        loadingEl.classList.add('hidden');
+
+        const fecha = pedido.fecha_pedido
+            ? new Date(pedido.fecha_pedido).toLocaleDateString('es-DO', { day: '2-digit', month: 'long', year: 'numeric' })
+            : '—';
+
+        headerEl.innerHTML = `
+            <div class="detail-header">
+                <div class="detail-field"><span class="label">Pedido</span><span class="value">${escapeHtml(pedido.pedido_numero)}</span></div>
+                <div class="detail-field"><span class="label">Cliente</span><span class="value">${escapeHtml(pedido.cliente_nombre)}</span></div>
+                <div class="detail-field"><span class="label">Vendedor</span><span class="value">${escapeHtml(pedido.vendedor_nombre)}</span></div>
+                <div class="detail-field"><span class="label">Fecha</span><span class="value">${fecha}</span></div>
+                <div class="detail-field"><span class="label">Total</span><span class="value" style="color:var(--success);font-weight:700;">${formatter.format(pedido.total)}</span></div>
+                <div class="detail-field"><span class="label">Orden Dynamics</span><span class="value dynamics-num">${escapeHtml(pedido.dynamics_order_number || ovNumber)}</span></div>
+            </div>
+        `;
+
+        if (lineas.length === 0) {
+            bodyEl.innerHTML = '<p style="text-align:center;color:var(--text-secondary);padding:32px;">Sin líneas de detalle</p>';
+            return;
+        }
+
+        const totalMonto = lineas.reduce((s, l) => s + (l.subtotal_linea || 0), 0);
+        const totalCant = lineas.reduce((s, l) => s + (l.cantidad || 0), 0);
+
+        bodyEl.innerHTML = `
+            <div class="table-wrapper">
+                <table>
+                    <thead><tr>
+                        <th>Código</th><th>Producto</th><th>Categoría</th>
+                        <th class="text-center">Cant.</th>
+                        <th class="text-right">Precio Unit.</th>
+                        <th class="text-right">Subtotal</th>
+                    </tr></thead>
+                    <tbody>
+                        ${lineas.map(l => `
+                            <tr>
+                                <td><span class="dynamics-num">${escapeHtml(l.item_id || '—')}</span></td>
+                                <td style="font-weight:500;">${escapeHtml(l.producto_nombre)}</td>
+                                <td style="color:var(--text-secondary);">${escapeHtml(l.categoria || '—')}</td>
+                                <td class="text-center">${l.cantidad}</td>
+                                <td class="text-right"><span class="money">${formatter.format(l.precio_unitario)}</span></td>
+                                <td class="text-right"><span class="money">${formatter.format(l.subtotal_linea)}</span></td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                    <tfoot>
+                        <tr>
+                            <td colspan="3" style="text-align:right;color:var(--text-secondary);font-size:12px;">${lineas.length} artículo(s)</td>
+                            <td class="text-center" style="font-weight:600;">${totalCant}</td>
+                            <td></td>
+                            <td class="text-right"><span class="money" style="color:var(--success);font-size:14px;font-weight:700;">${formatter.format(totalMonto)}</span></td>
+                        </tr>
+                    </tfoot>
+                </table>
+            </div>
+        `;
+    } catch (err) {
+        loadingEl.classList.add('hidden');
+        bodyEl.innerHTML = `<p style="text-align:center;color:var(--danger);padding:32px;">Error al cargar: ${err.message}</p>`;
+    }
+}
+
+function cerrarDetalleOV() {
+    document.getElementById('modal-ov-tracking').classList.add('hidden');
 }
 
 // === Utilidades ===

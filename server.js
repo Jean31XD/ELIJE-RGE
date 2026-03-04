@@ -133,6 +133,17 @@ app.get('/api/pedidos', async (req, res) => {
     }
 });
 
+app.get('/api/pedidos/:id', async (req, res) => {
+    try {
+        const pedido = await getOrderById(parseInt(req.params.id));
+        if (!pedido) return res.status(404).json({ error: 'Pedido no encontrado' });
+        res.json(pedido);
+    } catch (err) {
+        console.error(`Error en /api/pedidos/${req.params.id}:`, err.message);
+        res.status(500).json({ error: err.message });
+    }
+});
+
 app.get('/api/pedidos/:id/lineas', async (req, res) => {
     try {
         const lineas = await getOrderLines(parseInt(req.params.id));
@@ -156,7 +167,8 @@ app.get('/api/cobros', async (req, res) => {
 app.get('/api/tracking', async (req, res) => {
     try {
         const filters = {};
-        if (req.query.fecha) filters.fecha = req.query.fecha;
+        if (req.query.fechaDesde) filters.fechaDesde = req.query.fechaDesde;
+        if (req.query.fechaHasta) filters.fechaHasta = req.query.fechaHasta;
         if (req.query.vendedor_id) filters.vendedor_id = req.query.vendedor_id;
         if (req.query.action) filters.action = req.query.action;
         const tracking = await getTrackingLogs(filters);
