@@ -74,15 +74,12 @@ async function ensureColumnExists() {
 async function getAllOrders() {
     const db = await getPool();
     const result = await db.request().query(`
-        SELECT p.pedido_id, p.pedido_numero, p.cliente_nombre, p.cliente_rnc,
-               p.vendedor_nombre, p.fecha_pedido, p.total,
-               ISNULL(p.enviado_dynamics, 0) AS enviado_dynamics,
-               p.dynamics_order_number, p.sync_error,
-               m.sales_group_id AS vendedor_grupo
-        FROM [dbo].[pedidos] p
-        LEFT JOIN [dbo].[vendedor_dynamics_map] m
-            ON UPPER(LTRIM(RTRIM(p.vendedor_nombre))) = UPPER(LTRIM(RTRIM(m.vendedor_nombre)))
-        ORDER BY p.fecha_pedido DESC
+        SELECT pedido_id, pedido_numero, cliente_nombre, cliente_rnc,
+               vendedor_nombre, fecha_pedido, total,
+               ISNULL(enviado_dynamics, 0) AS enviado_dynamics,
+               dynamics_order_number, sync_error
+        FROM [dbo].[pedidos]
+        ORDER BY fecha_pedido DESC
     `);
     return result.recordset;
 }
@@ -204,8 +201,37 @@ async function resetOrderSyncStatus(pedidoId) {
 
 // === Dashboard ===
 
-async function getDashboardData() {
+async function getDashboardData(filters = {}) {
     const db = await getPool();
+
+    // Build WHERE clause based on filters
+    const conditions = [];
+    const request = db.request();
+
+    if (filters.vendedor) {
+        conditions.push("vendedor_nombre LIKE '%' + @vendedor + '%'");
+        request.input('vendedor', filters.vendedor);
+    }
+    if (filters.cliente) {
+        conditions.push("cliente_nombre LIKE '%' + @cliente + '%'");
+        request.input('cliente', filters.cliente);
+    }
+
+    const whereClause = conditions.length > 0 ? 'WHERE ' + conditions.join(' AND ') : '';
+    const andClause = conditions.length > 0 ? ' AND ' + conditions.join(' AND ') : '';
+
+    // For categories query which uses pedidos_detalle, we need a join
+    const catConditions = [];
+    const catRequest = db.request();
+    if (filters.vendedor) {
+        catConditions.push("p.vendedor_nombre LIKE '%' + @vendedor + '%'");
+        catRequest.input('vendedor', filters.vendedor);
+    }
+    if (filters.cliente) {
+        catConditions.push("p.cliente_nombre LIKE '%' + @cliente + '%'");
+        catRequest.input('cliente', filters.cliente);
+    }
+    const catWhereClause = catConditions.length > 0 ? 'WHERE ' + catConditions.join(' AND ') : '';
 
     const [
         kpisResult,
@@ -217,7 +243,7 @@ async function getDashboardData() {
         recentOrdersResult
     ] = await Promise.all([
         // KPIs generales
-        db.request().query(`
+        request.query(`
             SELECT
                 COUNT(*) AS total_pedidos,
                 ISNULL(SUM(total), 0) AS monto_total,
@@ -228,69 +254,114 @@ async function getDashboardData() {
                 COUNT(DISTINCT vendedor_nombre) AS total_vendedores,
                 COUNT(DISTINCT cliente_nombre) AS total_clientes
             FROM [dbo].[pedidos]
+            ${whereClause}
         `),
         // Tendencia diaria (30 dias)
-        db.request().query(`
-            SELECT
-                CONVERT(VARCHAR(10), fecha_pedido, 120) AS fecha,
-                COUNT(*) AS cantidad,
-                ISNULL(SUM(total), 0) AS monto
-            FROM [dbo].[pedidos]
-            WHERE fecha_pedido >= DATEADD(DAY, -30, GETDATE())
-            GROUP BY CONVERT(VARCHAR(10), fecha_pedido, 120)
-            ORDER BY fecha ASC
-        `),
+        (function () {
+            const r = db.request();
+            if (filters.vendedor) r.input('vendedor', filters.vendedor);
+            if (filters.cliente) r.input('cliente', filters.cliente);
+            return r.query(`
+                SELECT
+                    CONVERT(VARCHAR(10), fecha_pedido, 120) AS fecha,
+                    COUNT(*) AS cantidad,
+                    ISNULL(SUM(total), 0) AS monto
+                FROM [dbo].[pedidos]
+                WHERE fecha_pedido >= DATEADD(DAY, -30, GETDATE()) ${andClause}
+                GROUP BY CONVERT(VARCHAR(10), fecha_pedido, 120)
+                ORDER BY fecha ASC
+            `);
+        })(),
         // Tendencia mensual (12 meses)
-        db.request().query(`
-            SELECT
-                FORMAT(fecha_pedido, 'yyyy-MM') AS mes,
-                COUNT(*) AS cantidad,
-                ISNULL(SUM(total), 0) AS monto
-            FROM [dbo].[pedidos]
-            WHERE fecha_pedido >= DATEADD(MONTH, -12, GETDATE())
-            GROUP BY FORMAT(fecha_pedido, 'yyyy-MM')
-            ORDER BY mes ASC
-        `),
+        (function () {
+            const r = db.request();
+            if (filters.vendedor) r.input('vendedor', filters.vendedor);
+            if (filters.cliente) r.input('cliente', filters.cliente);
+            return r.query(`
+                SELECT
+                    FORMAT(fecha_pedido, 'yyyy-MM') AS mes,
+                    COUNT(*) AS cantidad,
+                    ISNULL(SUM(total), 0) AS monto
+                FROM [dbo].[pedidos]
+                WHERE fecha_pedido >= DATEADD(MONTH, -12, GETDATE()) ${andClause}
+                GROUP BY FORMAT(fecha_pedido, 'yyyy-MM')
+                ORDER BY mes ASC
+            `);
+        })(),
         // Top 10 vendedores por monto
-        db.request().query(`
-            SELECT TOP 10
-                vendedor_nombre,
-                COUNT(*) AS total_pedidos,
-                ISNULL(SUM(total), 0) AS monto_total
-            FROM [dbo].[pedidos]
-            GROUP BY vendedor_nombre
-            ORDER BY monto_total DESC
-        `),
+        (function () {
+            const r = db.request();
+            if (filters.vendedor) r.input('vendedor', filters.vendedor);
+            if (filters.cliente) r.input('cliente', filters.cliente);
+            return r.query(`
+                SELECT TOP 10
+                    vendedor_nombre,
+                    COUNT(*) AS total_pedidos,
+                    ISNULL(SUM(total), 0) AS monto_total
+                FROM [dbo].[pedidos]
+                ${whereClause}
+                GROUP BY vendedor_nombre
+                ORDER BY monto_total DESC
+            `);
+        })(),
         // Top 10 clientes por monto
-        db.request().query(`
-            SELECT TOP 10
-                cliente_nombre,
-                COUNT(*) AS total_pedidos,
-                ISNULL(SUM(total), 0) AS monto_total
-            FROM [dbo].[pedidos]
-            GROUP BY cliente_nombre
-            ORDER BY monto_total DESC
-        `),
+        (function () {
+            const r = db.request();
+            if (filters.vendedor) r.input('vendedor', filters.vendedor);
+            if (filters.cliente) r.input('cliente', filters.cliente);
+            return r.query(`
+                SELECT TOP 10
+                    cliente_nombre,
+                    COUNT(*) AS total_pedidos,
+                    ISNULL(SUM(total), 0) AS monto_total
+                FROM [dbo].[pedidos]
+                ${whereClause}
+                GROUP BY cliente_nombre
+                ORDER BY monto_total DESC
+            `);
+        })(),
         // Top 10 categorias por monto
-        db.request().query(`
-            SELECT TOP 10
-                ISNULL(categoria, 'Sin Categoria') AS categoria,
-                COUNT(*) AS total_lineas,
-                ISNULL(SUM(subtotal_linea), 0) AS monto_total
-            FROM [dbo].[pedidos_detalle]
-            GROUP BY categoria
-            ORDER BY monto_total DESC
-        `),
+        (function () {
+            if (catConditions.length > 0) {
+                return catRequest.query(`
+                    SELECT TOP 10
+                        ISNULL(d.categoria, 'Sin Categoria') AS categoria,
+                        COUNT(*) AS total_lineas,
+                        ISNULL(SUM(d.subtotal_linea), 0) AS monto_total
+                    FROM [dbo].[pedidos_detalle] d
+                    INNER JOIN [dbo].[pedidos] p ON d.pedido_id = p.pedido_id
+                    ${catWhereClause}
+                    GROUP BY d.categoria
+                    ORDER BY monto_total DESC
+                `);
+            } else {
+                return catRequest.query(`
+                    SELECT TOP 10
+                        ISNULL(categoria, 'Sin Categoria') AS categoria,
+                        COUNT(*) AS total_lineas,
+                        ISNULL(SUM(subtotal_linea), 0) AS monto_total
+                    FROM [dbo].[pedidos_detalle]
+                    GROUP BY categoria
+                    ORDER BY monto_total DESC
+                `);
+            }
+        })(),
         // Ultimos 5 pedidos
-        db.request().query(`
-            SELECT TOP 5
-                pedido_numero, cliente_nombre, vendedor_nombre,
-                fecha_pedido, total,
-                ISNULL(enviado_dynamics, 0) AS enviado_dynamics,
-                dynamics_order_number, sync_error
-            FROM [dbo].[pedidos]
-            ORDER BY fecha_pedido DESC
-        `)
+        (function () {
+            const r = db.request();
+            if (filters.vendedor) r.input('vendedor', filters.vendedor);
+            if (filters.cliente) r.input('cliente', filters.cliente);
+            return r.query(`
+                SELECT TOP 5
+                    pedido_numero, cliente_nombre, vendedor_nombre,
+                    fecha_pedido, total,
+                    ISNULL(enviado_dynamics, 0) AS enviado_dynamics,
+                    dynamics_order_number, sync_error
+                FROM [dbo].[pedidos]
+                ${whereClause}
+                ORDER BY fecha_pedido DESC
+            `);
+        })()
     ]);
 
     return {

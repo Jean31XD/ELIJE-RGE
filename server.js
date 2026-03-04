@@ -75,10 +75,31 @@ app.post('/api/pedidos/:id/retry', async (req, res) => {
 // --- API DASHBOARD ---
 app.get('/api/dashboard', async (req, res) => {
     try {
-        const data = await getDashboardData();
+        const filters = {};
+        if (req.query.vendedor) filters.vendedor = req.query.vendedor;
+        if (req.query.cliente) filters.cliente = req.query.cliente;
+        const data = await getDashboardData(filters);
         res.json(data);
     } catch (err) {
         console.error('Error en /api/dashboard:', err.message);
+        res.status(500).json({ error: err.message });
+    }
+});
+
+app.get('/api/dashboard/filters', async (req, res) => {
+    try {
+        const db = require('./dbConnection').getPool;
+        const pool = await db();
+        const [vendedores, clientes] = await Promise.all([
+            pool.request().query(`SELECT DISTINCT vendedor_nombre FROM [dbo].[pedidos] WHERE vendedor_nombre IS NOT NULL AND vendedor_nombre <> '' ORDER BY vendedor_nombre`),
+            pool.request().query(`SELECT DISTINCT cliente_nombre FROM [dbo].[pedidos] WHERE cliente_nombre IS NOT NULL AND cliente_nombre <> '' ORDER BY cliente_nombre`)
+        ]);
+        res.json({
+            vendedores: vendedores.recordset.map(r => r.vendedor_nombre),
+            clientes: clientes.recordset.map(r => r.cliente_nombre)
+        });
+    } catch (err) {
+        console.error('Error en /api/dashboard/filters:', err.message);
         res.status(500).json({ error: err.message });
     }
 });

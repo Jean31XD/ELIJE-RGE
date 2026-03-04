@@ -56,9 +56,6 @@ window.addEventListener('DOMContentLoaded', () => {
         th.addEventListener('click', () => sortarPedidos(th.dataset.col));
     });
 
-    // Al cambiar grupo, actualizar la lista de vendedores
-    const filtroGrupo = document.getElementById('filtroGrupo');
-    if (filtroGrupo) filtroGrupo.addEventListener('change', poblarVendedores);
 
     // Filtros de Cobros
     const searchCobros = document.getElementById('searchCobros');
@@ -139,7 +136,6 @@ async function cargarPedidos() {
         if (!res.ok) throw new Error('Error del servidor');
         todosLosPedidos = await res.json();
         loader.classList.add('hidden');
-        poblarGrupos();
         poblarVendedores();
         aplicarFiltros();
         renderizarKpisPedidos();
@@ -159,48 +155,30 @@ async function cargarPedidosSilencioso() {
         const hashActual = todosLosPedidos.map(p => p.pedido_id + p.enviado_dynamics + (p.sync_error || '')).join('|');
         if (hashNuevos !== hashActual) {
             todosLosPedidos = nuevos;
-            poblarGrupos();
             poblarVendedores();
             aplicarFiltros(); // llama renderizarKpisPedidos internamente
         }
-    } catch {}
-}
-
-function poblarGrupos() {
-    const select = document.getElementById('filtroGrupo');
-    if (!select) return;
-    const valorActual = select.value;
-    const grupos = [...new Set(todosLosPedidos.map(p => p.vendedor_grupo).filter(Boolean))].sort();
-    select.innerHTML = '<option value="todos">Todos</option>' +
-        grupos.map(g => `<option value="${escapeHtml(g)}">${escapeHtml(g)}</option>`).join('');
-    if (grupos.includes(valorActual)) select.value = valorActual;
+    } catch { }
 }
 
 function poblarVendedores() {
-    const grupoActual = document.getElementById('filtroGrupo')?.value || 'todos';
     const select = document.getElementById('filtroVendedor');
     if (!select) return;
     const valorActual = select.value;
-    // Si hay un grupo seleccionado, mostrar solo los vendedores de ese grupo
-    const base = grupoActual !== 'todos'
-        ? todosLosPedidos.filter(p => p.vendedor_grupo === grupoActual)
-        : todosLosPedidos;
-    const vendedores = [...new Set(base.map(p => p.vendedor_nombre).filter(Boolean))].sort();
+    const vendedores = [...new Set(todosLosPedidos.map(p => p.vendedor_nombre).filter(Boolean))].sort();
     select.innerHTML = '<option value="todos">Todos</option>' +
         vendedores.map(v => `<option value="${escapeHtml(v)}">${escapeHtml(v)}</option>`).join('');
     if (vendedores.includes(valorActual)) select.value = valorActual;
-    else select.value = 'todos';
 }
 
 function renderizarKpisPedidos() {
     const estadoActivo = document.getElementById('filtroEstado')?.value || 'todos';
 
-    // Aplicar búsqueda, fechas, grupo y vendedor (todo menos estado) para que
-    // los conteos reflejen el contexto actual del usuario
+    // Aplicar búsqueda, fechas y vendedor (todo menos estado) para que los conteos
+    // reflejen el contexto actual del usuario
     const busqueda = document.getElementById('searchGlobal')?.value.toLowerCase().trim() || '';
-    const desde    = document.getElementById('fechaDesde')?.value || '';
-    const hasta    = document.getElementById('fechaHasta')?.value || '';
-    const grupo    = document.getElementById('filtroGrupo')?.value || 'todos';
+    const desde = document.getElementById('fechaDesde')?.value || '';
+    const hasta = document.getElementById('fechaHasta')?.value || '';
     const vendedor = document.getElementById('filtroVendedor')?.value || 'todos';
 
     const base = todosLosPedidos.filter(p => {
@@ -211,14 +189,13 @@ function renderizarKpisPedidos() {
         const fecha = p.fecha_pedido ? p.fecha_pedido.split('T')[0] : '';
         if (desde && fecha < desde) return false;
         if (hasta && fecha > hasta) return false;
-        if (grupo !== 'todos' && p.vendedor_grupo !== grupo) return false;
         if (vendedor !== 'todos' && p.vendedor_nombre !== vendedor) return false;
         return true;
     });
 
-    const total      = base.length;
-    const enviados   = base.filter(p => p.enviado_dynamics).length;
-    const errores    = base.filter(p => p.sync_error && !p.enviado_dynamics).length;
+    const total = base.length;
+    const enviados = base.filter(p => p.enviado_dynamics).length;
+    const errores = base.filter(p => p.sync_error && !p.enviado_dynamics).length;
     const pendientes = base.filter(p => !p.enviado_dynamics && !p.sync_error).length;
 
     document.getElementById('btn-reintentar-errores')?.classList.toggle('hidden', errores === 0);
@@ -254,7 +231,6 @@ function aplicarFiltros() {
     const hasta = document.getElementById('fechaHasta').value;
     const estado = document.getElementById('filtroEstado').value;
     const vendedor = document.getElementById('filtroVendedor')?.value || 'todos';
-    const grupo = document.getElementById('filtroGrupo')?.value || 'todos';
 
     pedidosFiltrados = todosLosPedidos.filter(p => {
         // Texto
@@ -267,9 +243,6 @@ function aplicarFiltros() {
         const fecha = p.fecha_pedido ? p.fecha_pedido.split('T')[0] : '';
         if (desde && fecha < desde) return false;
         if (hasta && fecha > hasta) return false;
-
-        // Grupo (Comercial / Proyectos)
-        if (grupo !== 'todos' && p.vendedor_grupo !== grupo) return false;
 
         // Vendedor
         if (vendedor !== 'todos' && p.vendedor_nombre !== vendedor) return false;
@@ -533,10 +506,10 @@ async function verDetalle(pedidoId) {
     // Navegación prev/next
     const btnPrev = document.getElementById('btn-prev-detalle');
     const btnNext = document.getElementById('btn-next-detalle');
-    const navPos  = document.getElementById('detail-nav-pos');
+    const navPos = document.getElementById('detail-nav-pos');
     if (btnPrev) btnPrev.disabled = pedidoIndexDetalle <= 0;
     if (btnNext) btnNext.disabled = pedidoIndexDetalle >= pedidosFiltrados.length - 1;
-    if (navPos)  navPos.textContent = pedidosFiltrados.length > 0
+    if (navPos) navPos.textContent = pedidosFiltrados.length > 0
         ? `${pedidoIndexDetalle + 1} / ${pedidosFiltrados.length}` : '';
 
     // Botón retry en detalle
@@ -709,8 +682,6 @@ function limpiarFiltros() {
     document.getElementById('fechaDesde').value = '';
     document.getElementById('fechaHasta').value = '';
     document.getElementById('filtroEstado').value = 'todos';
-    const filtroGrupo = document.getElementById('filtroGrupo');
-    if (filtroGrupo) filtroGrupo.value = 'todos';
     const filtroVendedor = document.getElementById('filtroVendedor');
     if (filtroVendedor) filtroVendedor.value = 'todos';
     pedidoSortCol = 'fecha_pedido';
@@ -1143,7 +1114,9 @@ async function eliminarRango(id) {
 }
 
 // === Dashboard ===
-async function cargarDashboard() {
+let dashFilterOptions = null;
+
+async function cargarDashboard(filters = {}) {
     const loading = document.getElementById('dashboard-loading');
     const content = document.getElementById('dashboard-content');
 
@@ -1151,20 +1124,47 @@ async function cargarDashboard() {
     content.classList.add('hidden');
 
     try {
-        const res = await fetch('/api/dashboard');
+        // Fetch filter options on first load
+        if (!dashFilterOptions) {
+            try {
+                const fRes = await fetch('/api/dashboard/filters');
+                if (fRes.ok) dashFilterOptions = await fRes.json();
+            } catch (e) { console.warn('No se pudieron cargar filtros:', e); }
+        }
+
+        const params = new URLSearchParams();
+        if (filters.vendedor) params.set('vendedor', filters.vendedor);
+        if (filters.cliente) params.set('cliente', filters.cliente);
+
+        const url = '/api/dashboard' + (params.toString() ? '?' + params.toString() : '');
+        const res = await fetch(url);
         if (!res.ok) throw new Error('Error del servidor');
         dashboardData = await res.json();
 
         loading.classList.add('hidden');
         content.classList.remove('hidden');
-        renderDashboard(dashboardData);
+        renderDashboard(dashboardData, filters);
     } catch (err) {
         loading.innerHTML = `<p style="color: var(--danger);">Error cargando dashboard: ${err.message}</p>`;
         console.error(err);
     }
 }
 
-function renderDashboard(data) {
+function aplicarFiltrosDashboard() {
+    const vendedor = document.getElementById('dashFiltroVendedor')?.value || '';
+    const cliente = document.getElementById('dashFiltroCliente')?.value || '';
+    cargarDashboard({ vendedor, cliente });
+}
+
+function limpiarFiltrosDashboard() {
+    const v = document.getElementById('dashFiltroVendedor');
+    const c = document.getElementById('dashFiltroCliente');
+    if (v) v.value = '';
+    if (c) c.value = '';
+    cargarDashboard();
+}
+
+function renderDashboard(data, filters = {}) {
     const content = document.getElementById('dashboard-content');
     const k = data.kpis;
 
@@ -1172,7 +1172,53 @@ function renderDashboard(data) {
         ? ((k.enviados_dynamics / k.total_pedidos) * 100).toFixed(1)
         : 0;
 
+    // Dynamic greeting
+    const hour = new Date().getHours();
+    const greeting = hour < 12 ? 'Buenos dias' : hour < 18 ? 'Buenas tardes' : 'Buenas noches';
+    const dateStr = new Date().toLocaleDateString('es-DO', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+
+    const hasFilters = filters.vendedor || filters.cliente;
+
+    // Build dropdown options
+    const vendedorOpts = (dashFilterOptions?.vendedores || []).map(v =>
+        `<option value="${escapeHtml(v)}" ${filters.vendedor === v ? 'selected' : ''}>${escapeHtml(v)}</option>`
+    ).join('');
+    const clienteOpts = (dashFilterOptions?.clientes || []).map(c =>
+        `<option value="${escapeHtml(c)}" ${filters.cliente === c ? 'selected' : ''}>${escapeHtml(c)}</option>`
+    ).join('');
+
     content.innerHTML = `
+        <div class="dashboard-welcome">
+            <h2>${greeting}</h2>
+            <p>${dateStr.charAt(0).toUpperCase() + dateStr.slice(1)}</p>
+        </div>
+
+        <div class="dashboard-filters">
+            <div class="dash-filter-bar">
+                <div class="dash-filter-icon">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/>
+                    </svg>
+                </div>
+                <div class="dash-filter-group">
+                    <label>Vendedor</label>
+                    <select id="dashFiltroVendedor" onchange="aplicarFiltrosDashboard()">
+                        <option value="">Todos los vendedores</option>
+                        ${vendedorOpts}
+                    </select>
+                </div>
+                <div class="dash-filter-group">
+                    <label>Cliente</label>
+                    <select id="dashFiltroCliente" onchange="aplicarFiltrosDashboard()">
+                        <option value="">Todos los clientes</option>
+                        ${clienteOpts}
+                    </select>
+                </div>
+                <button class="btn btn-ghost btn-sm" onclick="limpiarFiltrosDashboard()" ${!hasFilters ? 'disabled' : ''}>Limpiar</button>
+                ${hasFilters ? '<span class="dash-filter-active">Filtros activos</span>' : ''}
+            </div>
+        </div>
+
         <div class="dashboard-kpis">
             <div class="kpi-card">
                 <div class="kpi-icon kpi-icon-blue">
@@ -1205,45 +1251,65 @@ function renderDashboard(data) {
                 </div>
                 <div class="kpi-data">
                     <span class="kpi-value">${k.total_vendedores}</span>
-                    <span class="kpi-label">Vendedores</span>
+                    <span class="kpi-label">Vendedores Activos</span>
                 </div>
             </div>
             <div class="kpi-card">
-                <div class="kpi-icon kpi-icon-orange">
+                <div class="kpi-icon kpi-icon-teal">
                     <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/>
-                        <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>
+                        <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/>
+                        <path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>
                     </svg>
                 </div>
                 <div class="kpi-data">
-                    <span class="kpi-value">${syncRate}%</span>
-                    <span class="kpi-label">Tasa de Sync</span>
+                    <span class="kpi-value">${k.total_clientes}</span>
+                    <span class="kpi-label">Clientes</span>
                 </div>
             </div>
         </div>
 
-        <div class="dashboard-sync-status">
-            <div class="sync-mini-card sync-ok">
-                <span class="sync-count">${k.enviados_dynamics}</span>
-                <span class="sync-label">Sincronizados</span>
-            </div>
-            <div class="sync-mini-card sync-pending">
-                <span class="sync-count">${k.pendientes}</span>
-                <span class="sync-label">Pendientes</span>
-            </div>
-            <div class="sync-mini-card sync-error">
-                <span class="sync-count">${k.con_error}</span>
-                <span class="sync-label">Con Error</span>
-            </div>
-            <div class="sync-mini-card sync-avg">
-                <span class="sync-count">${formatter.format(k.promedio_pedido)}</span>
-                <span class="sync-label">Promedio por Pedido</span>
+        <div class="dashboard-sync-bar">
+            <div class="sync-progress-card">
+                <div class="sync-progress-header">
+                    <div class="sync-progress-title">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/>
+                            <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>
+                        </svg>
+                        Sincronizacion con Dynamics 365
+                    </div>
+                    <span class="sync-progress-pct">${syncRate}%</span>
+                </div>
+                <div class="sync-progress-track">
+                    <div class="sync-progress-fill" style="width: ${syncRate}%"></div>
+                </div>
+                <div class="sync-stats-row">
+                    <div class="sync-stat sync-stat--ok">
+                        <div class="sync-stat-value">${k.enviados_dynamics}</div>
+                        <div class="sync-stat-label">Sincronizados</div>
+                    </div>
+                    <div class="sync-stat sync-stat--pending">
+                        <div class="sync-stat-value">${k.pendientes}</div>
+                        <div class="sync-stat-label">Pendientes</div>
+                    </div>
+                    <div class="sync-stat sync-stat--error">
+                        <div class="sync-stat-value">${k.con_error}</div>
+                        <div class="sync-stat-label">Con Error</div>
+                    </div>
+                    <div class="sync-stat sync-stat--avg">
+                        <div class="sync-stat-value">${formatter.format(k.promedio_pedido)}</div>
+                        <div class="sync-stat-label">Promedio / Pedido</div>
+                    </div>
+                </div>
             </div>
         </div>
 
         <div class="dashboard-charts-row">
             <div class="dashboard-chart-card dashboard-chart-wide">
-                <h3 class="chart-title">Tendencia de Ventas (30 dias)</h3>
+                <h3 class="chart-title">
+                    Tendencia de Ventas
+                    <span class="chart-title-badge">30 dias</span>
+                </h3>
                 <canvas id="chart-daily-trend"></canvas>
             </div>
             <div class="dashboard-chart-card">
@@ -1254,7 +1320,10 @@ function renderDashboard(data) {
 
         <div class="dashboard-charts-row dashboard-charts-row-equal">
             <div class="dashboard-chart-card">
-                <h3 class="chart-title">Ventas Mensuales</h3>
+                <h3 class="chart-title">
+                    Ventas Mensuales
+                    <span class="chart-title-badge">12 meses</span>
+                </h3>
                 <canvas id="chart-monthly-trend"></canvas>
             </div>
             <div class="dashboard-chart-card">
@@ -1265,18 +1334,42 @@ function renderDashboard(data) {
 
         <div class="dashboard-rankings-row">
             <div class="dashboard-ranking-card">
-                <h3 class="ranking-title">Top Vendedores</h3>
+                <h3 class="ranking-title">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>
+                    </svg>
+                    Top Vendedores
+                </h3>
                 <div class="ranking-list" id="ranking-vendedores"></div>
             </div>
             <div class="dashboard-ranking-card">
-                <h3 class="ranking-title">Top Clientes</h3>
+                <h3 class="ranking-title">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
+                        <polyline points="9 22 9 12 15 12 15 22"/>
+                    </svg>
+                    Top Clientes
+                </h3>
                 <div class="ranking-list" id="ranking-clientes"></div>
             </div>
         </div>
 
         <div class="dashboard-recent">
-            <h3 class="ranking-title">Pedidos Recientes</h3>
-            <div class="table-card" style="margin: 0;">
+            <div class="dashboard-recent-card">
+                <div class="dashboard-recent-header">
+                    <h3>
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
+                        </svg>
+                        Pedidos Recientes
+                    </h3>
+                    <span class="dashboard-recent-link" onclick="document.querySelector('[data-view=pedidos]').click()">
+                        Ver todos
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <polyline points="9 18 15 12 9 6"/>
+                        </svg>
+                    </span>
+                </div>
                 <div class="table-wrapper">
                     <table>
                         <thead>
@@ -1311,13 +1404,21 @@ function renderRankingList(containerId, items, nameField) {
     }
     const maxMonto = items[0].monto_total;
 
+    const avatarColors = ['#2563eb', '#7c3aed', '#0891b2', '#059669', '#d97706', '#dc2626', '#4f46e5', '#0d9488', '#b45309', '#be185d'];
+
     container.innerHTML = items.map((item, i) => {
         const pct = maxMonto > 0 ? (item.monto_total / maxMonto * 100) : 0;
+        const posClass = i === 0 ? 'ranking-gold' : i === 1 ? 'ranking-silver' : i === 2 ? 'ranking-bronze' : '';
+        const name = item[nameField] || '';
+        const initials = name.split(' ').filter(Boolean).slice(0, 2).map(w => w[0].toUpperCase()).join('');
+        const avatarBg = avatarColors[i % avatarColors.length];
+
         return `
             <div class="ranking-item">
-                <span class="ranking-pos ${i < 3 ? 'ranking-top' : ''}">${i + 1}</span>
+                <span class="ranking-pos ${posClass}">${i + 1}</span>
+                <span class="ranking-avatar" style="background: ${avatarBg};">${initials}</span>
                 <div class="ranking-info">
-                    <span class="ranking-name">${escapeHtml(item[nameField])}</span>
+                    <span class="ranking-name">${escapeHtml(name)}</span>
                     <div class="ranking-bar-bg">
                         <div class="ranking-bar" style="width: ${pct}%"></div>
                     </div>
@@ -1365,16 +1466,23 @@ function initDashboardCharts(data) {
 
     const chartColors = {
         primary: '#2563eb',
-        primaryLight: 'rgba(37, 99, 235, 0.1)',
+        primaryLight: 'rgba(37, 99, 235, 0.08)',
         success: '#16a34a',
         warning: '#d97706',
         danger: '#dc2626',
         purple: '#7c3aed'
     };
 
-    // Tendencia diaria - Linea
+    const defaultFontFamily = "'Inter', -apple-system, BlinkMacSystemFont, sans-serif";
+
+    // Tendencia diaria - Linea con gradiente
     const dailyCtx = document.getElementById('chart-daily-trend');
     if (dailyCtx) {
+        const ctx2d = dailyCtx.getContext('2d');
+        const gradient = ctx2d.createLinearGradient(0, 0, 0, 280);
+        gradient.addColorStop(0, 'rgba(37, 99, 235, 0.15)');
+        gradient.addColorStop(1, 'rgba(37, 99, 235, 0.01)');
+
         dashboardCharts.daily = new Chart(dailyCtx, {
             type: 'line',
             data: {
@@ -1386,19 +1494,31 @@ function initDashboardCharts(data) {
                     label: 'Monto (DOP)',
                     data: data.dailyTrend.map(d => d.monto),
                     borderColor: chartColors.primary,
-                    backgroundColor: chartColors.primaryLight,
+                    backgroundColor: gradient,
                     fill: true,
-                    tension: 0.3,
-                    pointRadius: 3,
-                    pointHoverRadius: 6
+                    tension: 0.4,
+                    pointRadius: 2,
+                    pointHoverRadius: 7,
+                    pointBackgroundColor: chartColors.primary,
+                    pointBorderColor: '#fff',
+                    pointBorderWidth: 2,
+                    pointHoverBorderWidth: 3,
+                    borderWidth: 2.5
                 }]
             },
             options: {
                 responsive: true,
                 maintainAspectRatio: false,
+                interaction: { mode: 'index', intersect: false },
                 plugins: {
                     legend: { display: false },
                     tooltip: {
+                        backgroundColor: '#1e293b',
+                        titleFont: { family: defaultFontFamily, size: 12, weight: '600' },
+                        bodyFont: { family: defaultFontFamily, size: 13 },
+                        padding: 12,
+                        cornerRadius: 10,
+                        displayColors: false,
                         callbacks: {
                             label: ctx => formatter.format(ctx.parsed.y)
                         }
@@ -1408,11 +1528,16 @@ function initDashboardCharts(data) {
                     y: {
                         beginAtZero: true,
                         ticks: {
+                            font: { family: defaultFontFamily, size: 11 },
+                            color: '#94a3b8',
                             callback: v => 'RD$' + (v >= 1000000 ? (v / 1000000).toFixed(1) + 'M' : v >= 1000 ? (v / 1000).toFixed(0) + 'K' : v)
                         },
-                        grid: { color: 'rgba(0,0,0,0.04)' }
+                        grid: { color: 'rgba(0,0,0,0.03)', drawBorder: false }
                     },
-                    x: { grid: { display: false } }
+                    x: {
+                        ticks: { font: { family: defaultFontFamily, size: 11 }, color: '#94a3b8' },
+                        grid: { display: false }
+                    }
                 }
             }
         });
@@ -1429,15 +1554,31 @@ function initDashboardCharts(data) {
                     data: [data.kpis.enviados_dynamics, data.kpis.pendientes, data.kpis.con_error],
                     backgroundColor: [chartColors.success, chartColors.warning, chartColors.danger],
                     borderWidth: 0,
-                    hoverOffset: 8
+                    hoverOffset: 8,
+                    spacing: 3
                 }]
             },
             options: {
                 responsive: true,
                 maintainAspectRatio: false,
-                cutout: '65%',
+                cutout: '68%',
                 plugins: {
-                    legend: { position: 'bottom', labels: { padding: 16, usePointStyle: true } }
+                    legend: {
+                        position: 'bottom',
+                        labels: {
+                            padding: 20,
+                            usePointStyle: true,
+                            pointStyleWidth: 10,
+                            font: { family: defaultFontFamily, size: 12 }
+                        }
+                    },
+                    tooltip: {
+                        backgroundColor: '#1e293b',
+                        titleFont: { family: defaultFontFamily, size: 12, weight: '600' },
+                        bodyFont: { family: defaultFontFamily, size: 13 },
+                        padding: 12,
+                        cornerRadius: 10
+                    }
                 }
             }
         });
@@ -1457,9 +1598,11 @@ function initDashboardCharts(data) {
                 datasets: [{
                     label: 'Monto (DOP)',
                     data: data.monthlyTrend.map(d => d.monto),
-                    backgroundColor: chartColors.primary,
-                    borderRadius: 4,
-                    barPercentage: 0.6
+                    backgroundColor: 'rgba(37, 99, 235, 0.8)',
+                    hoverBackgroundColor: chartColors.primary,
+                    borderRadius: 6,
+                    barPercentage: 0.55,
+                    borderSkipped: false
                 }]
             },
             options: {
@@ -1468,6 +1611,12 @@ function initDashboardCharts(data) {
                 plugins: {
                     legend: { display: false },
                     tooltip: {
+                        backgroundColor: '#1e293b',
+                        titleFont: { family: defaultFontFamily, size: 12, weight: '600' },
+                        bodyFont: { family: defaultFontFamily, size: 13 },
+                        padding: 12,
+                        cornerRadius: 10,
+                        displayColors: false,
                         callbacks: { label: ctx => formatter.format(ctx.parsed.y) }
                     }
                 },
@@ -1475,11 +1624,16 @@ function initDashboardCharts(data) {
                     y: {
                         beginAtZero: true,
                         ticks: {
+                            font: { family: defaultFontFamily, size: 11 },
+                            color: '#94a3b8',
                             callback: v => 'RD$' + (v >= 1000000 ? (v / 1000000).toFixed(1) + 'M' : v >= 1000 ? (v / 1000).toFixed(0) + 'K' : v)
                         },
-                        grid: { color: 'rgba(0,0,0,0.04)' }
+                        grid: { color: 'rgba(0,0,0,0.03)', drawBorder: false }
                     },
-                    x: { grid: { display: false } }
+                    x: {
+                        ticks: { font: { family: defaultFontFamily, size: 11 }, color: '#94a3b8' },
+                        grid: { display: false }
+                    }
                 }
             }
         });
@@ -1496,9 +1650,11 @@ function initDashboardCharts(data) {
                 datasets: [{
                     label: 'Monto (DOP)',
                     data: data.topCategorias.map(c => c.monto_total),
-                    backgroundColor: catColors.slice(0, data.topCategorias.length),
-                    borderRadius: 4,
-                    barPercentage: 0.7
+                    backgroundColor: catColors.slice(0, data.topCategorias.length).map(c => c + 'cc'),
+                    hoverBackgroundColor: catColors.slice(0, data.topCategorias.length),
+                    borderRadius: 6,
+                    barPercentage: 0.65,
+                    borderSkipped: false
                 }]
             },
             options: {
@@ -1508,6 +1664,12 @@ function initDashboardCharts(data) {
                 plugins: {
                     legend: { display: false },
                     tooltip: {
+                        backgroundColor: '#1e293b',
+                        titleFont: { family: defaultFontFamily, size: 12, weight: '600' },
+                        bodyFont: { family: defaultFontFamily, size: 13 },
+                        padding: 12,
+                        cornerRadius: 10,
+                        displayColors: false,
                         callbacks: { label: ctx => formatter.format(ctx.parsed.x) }
                     }
                 },
@@ -1515,11 +1677,16 @@ function initDashboardCharts(data) {
                     x: {
                         beginAtZero: true,
                         ticks: {
+                            font: { family: defaultFontFamily, size: 11 },
+                            color: '#94a3b8',
                             callback: v => 'RD$' + (v >= 1000000 ? (v / 1000000).toFixed(1) + 'M' : v >= 1000 ? (v / 1000).toFixed(0) + 'K' : v)
                         },
-                        grid: { color: 'rgba(0,0,0,0.04)' }
+                        grid: { color: 'rgba(0,0,0,0.03)', drawBorder: false }
                     },
-                    y: { grid: { display: false } }
+                    y: {
+                        ticks: { font: { family: defaultFontFamily, size: 12 }, color: '#475569' },
+                        grid: { display: false }
+                    }
                 }
             }
         });
@@ -1701,7 +1868,7 @@ function limpiarFiltrosCobros() {
 
 // === Tracking ===
 
-const VENDOR_COLORS = ['#2563eb','#dc2626','#16a34a','#d97706','#7c3aed','#0891b2','#db2777','#059669','#b45309','#0369a1'];
+const VENDOR_COLORS = ['#2563eb', '#dc2626', '#16a34a', '#d97706', '#7c3aed', '#0891b2', '#db2777', '#059669', '#b45309', '#0369a1'];
 
 function getVendedorColor(vendedorId) {
     if (!vendedorColorMap[vendedorId]) {
@@ -1712,16 +1879,16 @@ function getVendedorColor(vendedorId) {
 }
 
 const _tileProviders = () => ({
-    'Claro':       L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png',
-                    { attribution: '© OpenStreetMap © CARTO', maxZoom: 19 }),
-    'Calles':      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
-                    { attribution: '© OpenStreetMap contributors', maxZoom: 19 }),
-    'Satélite':    L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
-                    { attribution: 'Tiles © Esri', maxZoom: 19 }),
-    'Oscuro':      L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',
-                    { attribution: '© OpenStreetMap © CARTO', maxZoom: 19 }),
+    'Claro': L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png',
+        { attribution: '© OpenStreetMap © CARTO', maxZoom: 19 }),
+    'Calles': L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+        { attribution: '© OpenStreetMap contributors', maxZoom: 19 }),
+    'Satélite': L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+        { attribution: 'Tiles © Esri', maxZoom: 19 }),
+    'Oscuro': L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',
+        { attribution: '© OpenStreetMap © CARTO', maxZoom: 19 }),
     'Topográfico': L.tileLayer('https://tile.opentopomap.org/{z}/{x}/{y}.png',
-                    { attribution: '© OpenTopoMap', maxZoom: 17 })
+        { attribution: '© OpenTopoMap', maxZoom: 17 })
 });
 
 function initTrackingMap() {
@@ -1836,8 +2003,8 @@ function fitBoundsTracking() {
 }
 
 const _actionStyle = {
-    ORDER:    { bg: '#f0fdf4', color: '#166534', border: '#bbf7d0', dot: '#16a34a', label: 'Pedido' },
-    CHECKIN:  { bg: '#eff6ff', color: '#1d4ed8', border: '#bfdbfe', dot: '#2563eb', label: 'Check-in' },
+    ORDER: { bg: '#f0fdf4', color: '#166534', border: '#bbf7d0', dot: '#16a34a', label: 'Pedido' },
+    CHECKIN: { bg: '#eff6ff', color: '#1d4ed8', border: '#bfdbfe', dot: '#2563eb', label: 'Check-in' },
     PERIODIC: { bg: '#f8fafc', color: '#64748b', border: '#e2e8f0', dot: '#94a3b8', label: 'Periódico' }
 };
 
@@ -1846,7 +2013,7 @@ function renderSummaryPanel(datos) {
     if (!el) return;
     if (datos.length === 0) { el.innerHTML = '<div class="trk-empty">Sin datos</div>'; return; }
 
-    const orders   = datos.filter(t => t.action === 'ORDER').length;
+    const orders = datos.filter(t => t.action === 'ORDER').length;
     const checkins = datos.filter(t => t.action === 'CHECKIN').length;
     const vendedores = new Set(datos.map(t => t.vendedor_id)).size;
 
