@@ -155,8 +155,7 @@ async function cargarPedidosSilencioso() {
         if (hashNuevos !== hashActual) {
             todosLosPedidos = nuevos;
             poblarVendedores();
-            aplicarFiltros();
-            renderizarKpisPedidos();
+            aplicarFiltros(); // llama renderizarKpisPedidos internamente
         }
     } catch {}
 }
@@ -173,10 +172,30 @@ function poblarVendedores() {
 
 function renderizarKpisPedidos() {
     const estadoActivo = document.getElementById('filtroEstado')?.value || 'todos';
-    const total      = todosLosPedidos.length;
-    const enviados   = todosLosPedidos.filter(p => p.enviado_dynamics).length;
-    const errores    = todosLosPedidos.filter(p => p.sync_error && !p.enviado_dynamics).length;
-    const pendientes = todosLosPedidos.filter(p => !p.enviado_dynamics && !p.sync_error).length;
+
+    // Aplicar búsqueda, fechas y vendedor (todo menos estado) para que los conteos
+    // reflejen el contexto actual del usuario
+    const busqueda = document.getElementById('searchGlobal')?.value.toLowerCase().trim() || '';
+    const desde    = document.getElementById('fechaDesde')?.value || '';
+    const hasta    = document.getElementById('fechaHasta')?.value || '';
+    const vendedor = document.getElementById('filtroVendedor')?.value || 'todos';
+
+    const base = todosLosPedidos.filter(p => {
+        if (busqueda) {
+            const texto = `${p.pedido_numero} ${p.cliente_nombre} ${p.vendedor_nombre} ${p.cliente_rnc || ''} ${p.dynamics_order_number || ''}`.toLowerCase();
+            if (!texto.includes(busqueda)) return false;
+        }
+        const fecha = p.fecha_pedido ? p.fecha_pedido.split('T')[0] : '';
+        if (desde && fecha < desde) return false;
+        if (hasta && fecha > hasta) return false;
+        if (vendedor !== 'todos' && p.vendedor_nombre !== vendedor) return false;
+        return true;
+    });
+
+    const total      = base.length;
+    const enviados   = base.filter(p => p.enviado_dynamics).length;
+    const errores    = base.filter(p => p.sync_error && !p.enviado_dynamics).length;
+    const pendientes = base.filter(p => !p.enviado_dynamics && !p.sync_error).length;
 
     document.getElementById('btn-reintentar-errores')?.classList.toggle('hidden', errores === 0);
 
@@ -201,8 +220,7 @@ function renderizarKpisPedidos() {
 function filtrarPorEstado(estado) {
     const sel = document.getElementById('filtroEstado');
     if (sel) sel.value = estado;
-    aplicarFiltros();
-    renderizarKpisPedidos();
+    aplicarFiltros(); // ya llama renderizarKpisPedidos internamente
 }
 
 // === Filtros ===
@@ -247,6 +265,7 @@ function aplicarFiltros() {
     paginaActual = 1;
     renderizarPagina();
     actualizarSortHeaders();
+    renderizarKpisPedidos();
 }
 
 function sortarPedidos(col) {
@@ -666,8 +685,7 @@ function limpiarFiltros() {
     if (filtroVendedor) filtroVendedor.value = 'todos';
     pedidoSortCol = 'fecha_pedido';
     pedidoSortDir = 'desc';
-    aplicarFiltros();
-    renderizarKpisPedidos();
+    aplicarFiltros(); // llama renderizarKpisPedidos internamente
 }
 
 // === Navegacion ===
