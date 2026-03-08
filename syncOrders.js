@@ -113,10 +113,6 @@ async function createSalesOrderHeader(token, objPedido) {
         CommissionSalesRepresentativeGroupId: objPedido.vendedor_sales_group_id || '',
     };
 
-    if (objPedido.observaciones) {
-        headerData.SalesTable_KCP_GRCOR_Observations = objPedido.observaciones;
-    }
-
     if (objPedido.pedido_numero) {
         headerData.CustomerRequisitionNumber = objPedido.pedido_numero.substring(0, 50);
     }
@@ -271,10 +267,6 @@ async function processOrder(token, objPedido) {
         CustomersOrderReference: (objPedido.vendedor_nombre || '').substring(0, 60),
         SalesOrderName: (objPedido.cliente_nombre || '').substring(0, 60),
     };
-
-    if (objPedido.observaciones) {
-        patchData.SalesTable_KCP_GRCOR_Observations = objPedido.observaciones;
-    }
 
     if (objPedido.pedido_numero) {
         patchData.CustomerRequisitionNumber = objPedido.pedido_numero.substring(0, 50);
