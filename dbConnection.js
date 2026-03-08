@@ -76,6 +76,7 @@ async function getAllOrders() {
     const result = await db.request().query(`
         SELECT pedido_id, pedido_numero, cliente_nombre, cliente_rnc,
                vendedor_nombre, fecha_pedido, total,
+               observaciones,
                ISNULL(enviado_dynamics, 0) AS enviado_dynamics,
                dynamics_order_number, sync_error
         FROM [dbo].[pedidos]
@@ -91,6 +92,7 @@ async function getPendingOrders() {
                p.vendedor_nombre, p.fecha_pedido, p.total,
                p.cliente_cuenta as pedido_cliente_cuenta,
                p.dynamics_order_number,
+               p.observaciones,
                m.personnel_number AS vendedor_personnel_number,
                m.sales_group_id AS vendedor_sales_group_id,
                -- Priorizar custtable (RNC) y Cartera_cliente (Nombre) sobre p.cliente_cuenta para evitar datos basura
@@ -120,6 +122,7 @@ async function getOrderById(pedidoId) {
                    p.vendedor_nombre, p.fecha_pedido, p.total,
                    p.cliente_cuenta as pedido_cliente_cuenta,
                    p.dynamics_order_number,
+                   p.observaciones,
                    m.personnel_number AS vendedor_personnel_number,
                    m.sales_group_id AS vendedor_sales_group_id,
                    COALESCE(ct.accountnum, c.accountnum, NULLIF(LTRIM(RTRIM(p.cliente_cuenta)), '')) AS cliente_accountnum

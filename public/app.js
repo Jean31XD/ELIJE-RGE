@@ -561,6 +561,12 @@ async function verDetalle(pedidoId) {
             <span class="value" style="color: var(--danger); font-size: 13px; white-space: normal;">${escapeHtml(pedidoActual.sync_error)}</span>
         </div>
         ` : ''}
+        ${pedidoActual.observaciones ? `
+        <div class="detail-field" style="grid-column: span 2; background: #f0f7ff; padding: 10px; border-radius: 6px; border-left: 4px solid var(--primary);">
+            <span class="label">Observaciones</span>
+            <span class="value" style="font-size: 13px; white-space: normal;">${escapeHtml(pedidoActual.observaciones)}</span>
+        </div>
+        ` : ''}
     `;
 
     // Cargar lineas

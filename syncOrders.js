@@ -111,6 +111,7 @@ async function createSalesOrderHeader(token, objPedido) {
         RequestedShippingDate: new Date(objPedido.fecha_pedido).toISOString().split('T')[0] + 'T12:00:00Z',
         CustomersOrderReference: (objPedido.vendedor_nombre || '').substring(0, 60),
         CommissionSalesRepresentativeGroupId: objPedido.vendedor_sales_group_id || '',
+        KCP_GRCOR_Observations: objPedido.observaciones || '',
     };
 
     if (objPedido.pedido_numero) {
@@ -266,6 +267,7 @@ async function processOrder(token, objPedido) {
     const patchData = {
         CustomersOrderReference: (objPedido.vendedor_nombre || '').substring(0, 60),
         SalesOrderName: (objPedido.cliente_nombre || '').substring(0, 60),
+        KCP_GRCOR_Observations: objPedido.observaciones || '',
     };
 
     if (objPedido.pedido_numero) {
