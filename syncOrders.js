@@ -114,7 +114,7 @@ async function createSalesOrderHeader(token, objPedido) {
     };
 
     if (objPedido.observaciones) {
-        headerData.KCP_GRCOR_Observations = objPedido.observaciones;
+        headerData.SalesTable_KCP_GRCOR_Observations = objPedido.observaciones;
     }
 
     if (objPedido.pedido_numero) {
@@ -273,7 +273,7 @@ async function processOrder(token, objPedido) {
     };
 
     if (objPedido.observaciones) {
-        patchData.KCP_GRCOR_Observations = objPedido.observaciones;
+        patchData.SalesTable_KCP_GRCOR_Observations = objPedido.observaciones;
     }
 
     if (objPedido.pedido_numero) {
