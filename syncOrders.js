@@ -412,6 +412,8 @@ async function pollCycle() {
                     log(`  Error guardando fallo en BD: ${dbErr.message}`);
                 }
             }
+            // Pausa entre pedidos para evitar contención en NUMBERSEQUENCELIST de D365
+            await new Promise(resolve => setTimeout(resolve, 3000));
         }
 
         log(`Resumen: ${exitosos} exitosos, ${fallidos} fallidos`);
