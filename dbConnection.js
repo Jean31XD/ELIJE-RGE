@@ -481,6 +481,18 @@ async function buscarClientes(query) {
     return result.recordset;
 }
 
+async function getAllClientes() {
+    const db = await getPool();
+    const result = await db.request().query(`
+        SELECT accountnum, custname
+        FROM [dbo].[custtable]
+        WHERE accountnum IS NOT NULL AND accountnum <> ''
+          AND custname IS NOT NULL AND custname <> ''
+        ORDER BY custname
+    `);
+    return result.recordset;
+}
+
 async function closePool() {
     if (pool) {
         await pool.close();
@@ -615,5 +627,6 @@ module.exports = {
     addClienteExtra,
     deleteClienteExtra,
     getVendedores,
-    buscarClientes
+    buscarClientes,
+    getAllClientes
 };

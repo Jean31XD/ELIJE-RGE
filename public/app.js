@@ -2312,7 +2312,8 @@ function cerrarDetalleOV() {
 
 let todosLosClientesExtra = [];
 let clientesExtraFiltrados = [];
-let ceDebounceTimer = null;
+
+let todosLosClientesDisponibles = [];
 
 async function cargarClientesExtra() {
     const loading = document.getElementById('ce-loading');
@@ -2324,12 +2325,14 @@ async function cargarClientesExtra() {
     empty.classList.add('hidden');
 
     try {
-        const [asignaciones, vendedores] = await Promise.all([
+        const [asignaciones, vendedores, clientes] = await Promise.all([
             fetch('/api/clientes-extra').then(r => r.json()),
-            fetch('/api/vendedores').then(r => r.json())
+            fetch('/api/vendedores').then(r => r.json()),
+            fetch('/api/clientes').then(r => r.json())
         ]);
 
         todosLosClientesExtra = asignaciones;
+        todosLosClientesDisponibles = clientes;
         loading.classList.add('hidden');
 
         // Poblar selects de vendedores
@@ -2339,11 +2342,41 @@ async function cargarClientesExtra() {
         const filtroVendedor = document.getElementById('ce-filtro-vendedor');
         filtroVendedor.innerHTML = '<option value="todos">Todos los vendedores</option>' + opcionesVendedor;
 
+        poblarSelectClientes(clientes);
         filtrarTablaClientesExtra();
-        iniciarBuscadorClientes();
     } catch (err) {
         loading.innerHTML = `<p style="color: var(--danger);">Error: ${err.message}</p>`;
     }
+}
+
+function poblarSelectClientes(lista) {
+    const sel = document.getElementById('ce-select-cliente');
+    sel.innerHTML = '<option value="">-- Selecciona un cliente --</option>' +
+        lista.map(c => `<option value="${escapeHtml(c.accountnum)}" data-nombre="${escapeHtml(c.custname)}">${escapeHtml(c.custname)} (${escapeHtml(c.accountnum)})</option>`).join('');
+    // Limpiar selección previa
+    document.getElementById('ce-cliente-accountnum').value = '';
+    document.getElementById('ce-cliente-nombre').value = '';
+    sel.value = '';
+}
+
+function filtrarSelectClientes() {
+    const q = (document.getElementById('ce-filtro-cliente').value || '').toLowerCase().trim();
+    const filtrados = q
+        ? todosLosClientesDisponibles.filter(c =>
+            c.custname.toLowerCase().includes(q) || c.accountnum.toLowerCase().includes(q))
+        : todosLosClientesDisponibles;
+    poblarSelectClientes(filtrados);
+}
+
+function seleccionarClienteLista(sel) {
+    const opt = sel.options[sel.selectedIndex];
+    if (!opt || !opt.value) {
+        document.getElementById('ce-cliente-accountnum').value = '';
+        document.getElementById('ce-cliente-nombre').value = '';
+        return;
+    }
+    document.getElementById('ce-cliente-accountnum').value = opt.value;
+    document.getElementById('ce-cliente-nombre').value = opt.dataset.nombre;
 }
 
 function filtrarTablaClientesExtra() {
@@ -2389,70 +2422,13 @@ function renderizarTablaClientesExtra() {
     `).join('');
 }
 
-function iniciarBuscadorClientes() {
-    const input = document.getElementById('ce-buscar-cliente');
-    if (!input || input.dataset.initialized) return;
-    input.dataset.initialized = 'true';
-
-    input.addEventListener('input', () => {
-        clearTimeout(ceDebounceTimer);
-        const q = input.value.trim();
-        if (q.length < 2) {
-            document.getElementById('ce-dropdown').style.display = 'none';
-            return;
-        }
-        ceDebounceTimer = setTimeout(() => buscarClientesDropdown(q), 300);
-    });
-
-    document.addEventListener('click', (e) => {
-        if (!e.target.closest('#ce-buscar-cliente') && !e.target.closest('#ce-dropdown')) {
-            document.getElementById('ce-dropdown').style.display = 'none';
-        }
-    });
-}
-
-async function buscarClientesDropdown(q) {
-    const dropdown = document.getElementById('ce-dropdown');
-    dropdown.innerHTML = '<div style="padding: 10px; color: var(--text-secondary); font-size: 13px;">Buscando...</div>';
-    dropdown.style.display = 'block';
-
-    try {
-        const res = await fetch(`/api/clientes-buscar?q=${encodeURIComponent(q)}`);
-        const clientes = await res.json();
-
-        if (clientes.length === 0) {
-            dropdown.innerHTML = '<div style="padding: 10px; color: var(--text-secondary); font-size: 13px;">Sin resultados</div>';
-            return;
-        }
-
-        dropdown.innerHTML = clientes.map(c => `
-            <div style="padding: 10px 14px; cursor: pointer; font-size: 13px; border-bottom: 1px solid var(--border);"
-                 onmouseenter="this.style.background='var(--surface)'" onmouseleave="this.style.background=''"
-                 onclick="seleccionarClienteDropdown('${escapeHtml(c.accountnum)}', '${escapeHtml(c.custname)}')">
-                <strong>${escapeHtml(c.custname)}</strong>
-                <span style="color: var(--text-secondary); margin-left: 8px;">${escapeHtml(c.accountnum)}</span>
-            </div>
-        `).join('');
-    } catch {
-        dropdown.innerHTML = '<div style="padding: 10px; color: var(--danger); font-size: 13px;">Error al buscar</div>';
-    }
-}
-
-function seleccionarClienteDropdown(accountnum, nombre) {
-    document.getElementById('ce-cliente-accountnum').value = accountnum;
-    document.getElementById('ce-cliente-nombre').value = nombre;
-    document.getElementById('ce-cliente-nombre-display').value = nombre;
-    document.getElementById('ce-buscar-cliente').value = '';
-    document.getElementById('ce-dropdown').style.display = 'none';
-}
-
 async function asignarClienteExtra() {
     const vendedor = document.getElementById('ce-vendedor').value;
     const accountnum = document.getElementById('ce-cliente-accountnum').value;
     const nombre = document.getElementById('ce-cliente-nombre').value;
 
     if (!vendedor) { showToast('Selecciona un vendedor', 'warning'); return; }
-    if (!accountnum) { showToast('Selecciona un cliente del buscador', 'warning'); return; }
+    if (!accountnum) { showToast('Selecciona un cliente de la lista', 'warning'); return; }
 
     try {
         const res = await fetch('/api/clientes-extra', {
@@ -2464,10 +2440,9 @@ async function asignarClienteExtra() {
         if (!res.ok) { showToast(data.error || 'Error al asignar', 'error'); return; }
 
         // Limpiar selección
-        document.getElementById('ce-cliente-accountnum').value = '';
-        document.getElementById('ce-cliente-nombre').value = '';
-        document.getElementById('ce-cliente-nombre-display').value = '';
         document.getElementById('ce-vendedor').value = '';
+        document.getElementById('ce-filtro-cliente').value = '';
+        poblarSelectClientes(todosLosClientesDisponibles);
 
         showToast('Cliente asignado correctamente', 'success');
         cargarClientesExtra();

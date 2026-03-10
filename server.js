@@ -23,7 +23,8 @@ const {
     addClienteExtra,
     deleteClienteExtra,
     getVendedores,
-    buscarClientes
+    buscarClientes,
+    getAllClientes
 } = require('./dbConnection');
 const { getAccessToken } = require('./auth');
 const axios = require('axios');
@@ -291,6 +292,15 @@ app.get('/api/vendedores', async (req, res) => {
 app.get('/api/clientes-buscar', async (req, res) => {
     try {
         const clientes = await buscarClientes(req.query.q || '');
+        res.json(clientes);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+app.get('/api/clientes', async (req, res) => {
+    try {
+        const clientes = await getAllClientes();
         res.json(clientes);
     } catch (err) {
         res.status(500).json({ error: err.message });
