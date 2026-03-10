@@ -703,6 +703,7 @@ function switchView(view) {
     document.getElementById('vista-rangos').classList.add('hidden');
     document.getElementById('vista-cobros').classList.add('hidden');
     document.getElementById('vista-tracking').classList.add('hidden');
+    document.getElementById('vista-clientes-extra').classList.add('hidden');
 
     if (view === 'dashboard') {
         document.getElementById('vista-dashboard').classList.remove('hidden');
@@ -750,6 +751,11 @@ function switchView(view) {
         if (!trackCountdownInterval) {
             trackCountdownInterval = setInterval(actualizarIndicadorTiempo, 5000);
         }
+    } else if (view === 'clientes-extra') {
+        document.getElementById('vista-clientes-extra').classList.remove('hidden');
+        document.getElementById('page-title').textContent = 'Clientes Asignados a Vendedores';
+        document.getElementById('contador').classList.add('hidden');
+        cargarClientesExtra();
     }
 
     // Detener refresco de tracking si se sale de la vista
@@ -2300,6 +2306,188 @@ async function abrirDetalleOV(pedidoId, ovNumber) {
 
 function cerrarDetalleOV() {
     document.getElementById('modal-ov-tracking').classList.add('hidden');
+}
+
+// === Clientes Asignados a Vendedores ===
+
+let todosLosClientesExtra = [];
+let clientesExtraFiltrados = [];
+let ceDebounceTimer = null;
+
+async function cargarClientesExtra() {
+    const loading = document.getElementById('ce-loading');
+    const empty = document.getElementById('ce-empty');
+    const body = document.getElementById('ce-body');
+
+    loading.classList.remove('hidden');
+    body.innerHTML = '';
+    empty.classList.add('hidden');
+
+    try {
+        const [asignaciones, vendedores] = await Promise.all([
+            fetch('/api/clientes-extra').then(r => r.json()),
+            fetch('/api/vendedores').then(r => r.json())
+        ]);
+
+        todosLosClientesExtra = asignaciones;
+        loading.classList.add('hidden');
+
+        // Poblar selects de vendedores
+        const opcionesVendedor = vendedores.map(v => `<option value="${escapeHtml(v)}">${escapeHtml(v)}</option>`).join('');
+        document.getElementById('ce-vendedor').innerHTML = '<option value="">Seleccionar vendedor...</option>' + opcionesVendedor;
+
+        const filtroVendedor = document.getElementById('ce-filtro-vendedor');
+        filtroVendedor.innerHTML = '<option value="todos">Todos los vendedores</option>' + opcionesVendedor;
+
+        filtrarTablaClientesExtra();
+        iniciarBuscadorClientes();
+    } catch (err) {
+        loading.innerHTML = `<p style="color: var(--danger);">Error: ${err.message}</p>`;
+    }
+}
+
+function filtrarTablaClientesExtra() {
+    const vendedor = document.getElementById('ce-filtro-vendedor')?.value || 'todos';
+    const busq = (document.getElementById('ce-buscar-tabla')?.value || '').toLowerCase().trim();
+
+    clientesExtraFiltrados = todosLosClientesExtra.filter(a => {
+        if (vendedor !== 'todos' && a.vendedor_nombre !== vendedor) return false;
+        if (busq) {
+            const texto = `${a.vendedor_nombre} ${a.cliente_nombre} ${a.cliente_accountnum}`.toLowerCase();
+            if (!texto.includes(busq)) return false;
+        }
+        return true;
+    });
+
+    renderizarTablaClientesExtra();
+}
+
+function renderizarTablaClientesExtra() {
+    const body = document.getElementById('ce-body');
+    const empty = document.getElementById('ce-empty');
+
+    if (clientesExtraFiltrados.length === 0) {
+        body.innerHTML = '';
+        empty.classList.remove('hidden');
+        return;
+    }
+
+    empty.classList.add('hidden');
+    body.innerHTML = clientesExtraFiltrados.map(a => `
+        <tr>
+            <td>${escapeHtml(a.vendedor_nombre)}</td>
+            <td>${escapeHtml(a.cliente_nombre)}</td>
+            <td><code>${escapeHtml(a.cliente_accountnum)}</code></td>
+            <td>${a.fecha_asignacion ? new Date(a.fecha_asignacion).toLocaleDateString('es-DO') : '-'}</td>
+            <td class="text-center">
+                <button class="btn btn-ghost btn-sm" style="color: var(--danger);"
+                    onclick="eliminarClienteExtra(${a.id}, '${escapeHtml(a.cliente_nombre)}', '${escapeHtml(a.vendedor_nombre)}')">
+                    Quitar
+                </button>
+            </td>
+        </tr>
+    `).join('');
+}
+
+function iniciarBuscadorClientes() {
+    const input = document.getElementById('ce-buscar-cliente');
+    if (!input || input.dataset.initialized) return;
+    input.dataset.initialized = 'true';
+
+    input.addEventListener('input', () => {
+        clearTimeout(ceDebounceTimer);
+        const q = input.value.trim();
+        if (q.length < 2) {
+            document.getElementById('ce-dropdown').style.display = 'none';
+            return;
+        }
+        ceDebounceTimer = setTimeout(() => buscarClientesDropdown(q), 300);
+    });
+
+    document.addEventListener('click', (e) => {
+        if (!e.target.closest('#ce-buscar-cliente') && !e.target.closest('#ce-dropdown')) {
+            document.getElementById('ce-dropdown').style.display = 'none';
+        }
+    });
+}
+
+async function buscarClientesDropdown(q) {
+    const dropdown = document.getElementById('ce-dropdown');
+    dropdown.innerHTML = '<div style="padding: 10px; color: var(--text-secondary); font-size: 13px;">Buscando...</div>';
+    dropdown.style.display = 'block';
+
+    try {
+        const res = await fetch(`/api/clientes-buscar?q=${encodeURIComponent(q)}`);
+        const clientes = await res.json();
+
+        if (clientes.length === 0) {
+            dropdown.innerHTML = '<div style="padding: 10px; color: var(--text-secondary); font-size: 13px;">Sin resultados</div>';
+            return;
+        }
+
+        dropdown.innerHTML = clientes.map(c => `
+            <div style="padding: 10px 14px; cursor: pointer; font-size: 13px; border-bottom: 1px solid var(--border);"
+                 onmouseenter="this.style.background='var(--surface)'" onmouseleave="this.style.background=''"
+                 onclick="seleccionarClienteDropdown('${escapeHtml(c.accountnum)}', '${escapeHtml(c.custname)}')">
+                <strong>${escapeHtml(c.custname)}</strong>
+                <span style="color: var(--text-secondary); margin-left: 8px;">${escapeHtml(c.accountnum)}</span>
+            </div>
+        `).join('');
+    } catch {
+        dropdown.innerHTML = '<div style="padding: 10px; color: var(--danger); font-size: 13px;">Error al buscar</div>';
+    }
+}
+
+function seleccionarClienteDropdown(accountnum, nombre) {
+    document.getElementById('ce-cliente-accountnum').value = accountnum;
+    document.getElementById('ce-cliente-nombre').value = nombre;
+    document.getElementById('ce-cliente-nombre-display').value = nombre;
+    document.getElementById('ce-buscar-cliente').value = '';
+    document.getElementById('ce-dropdown').style.display = 'none';
+}
+
+async function asignarClienteExtra() {
+    const vendedor = document.getElementById('ce-vendedor').value;
+    const accountnum = document.getElementById('ce-cliente-accountnum').value;
+    const nombre = document.getElementById('ce-cliente-nombre').value;
+
+    if (!vendedor) { showToast('Selecciona un vendedor', 'warning'); return; }
+    if (!accountnum) { showToast('Selecciona un cliente del buscador', 'warning'); return; }
+
+    try {
+        const res = await fetch('/api/clientes-extra', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ vendedor_nombre: vendedor, cliente_accountnum: accountnum, cliente_nombre: nombre })
+        });
+        const data = await res.json();
+        if (!res.ok) { showToast(data.error || 'Error al asignar', 'error'); return; }
+
+        // Limpiar selección
+        document.getElementById('ce-cliente-accountnum').value = '';
+        document.getElementById('ce-cliente-nombre').value = '';
+        document.getElementById('ce-cliente-nombre-display').value = '';
+        document.getElementById('ce-vendedor').value = '';
+
+        showToast('Cliente asignado correctamente', 'success');
+        cargarClientesExtra();
+    } catch (err) {
+        showToast('Error de conexión', 'error');
+    }
+}
+
+async function eliminarClienteExtra(id, clienteNombre, vendedorNombre) {
+    if (!confirm(`¿Quitar a "${clienteNombre}" del vendedor "${vendedorNombre}"?`)) return;
+
+    try {
+        const res = await fetch(`/api/clientes-extra/${id}`, { method: 'DELETE' });
+        if (!res.ok) { showToast('Error al eliminar', 'error'); return; }
+        showToast('Asignación eliminada', 'success');
+        todosLosClientesExtra = todosLosClientesExtra.filter(a => a.id !== id);
+        filtrarTablaClientesExtra();
+    } catch {
+        showToast('Error de conexión', 'error');
+    }
 }
 
 // === Utilidades ===

@@ -81,6 +81,15 @@
                 </svg>
                 Tracking
             </a>
+            <a href="#" class="nav-item" data-view="clientes-extra">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+                    <circle cx="9" cy="7" r="4"></circle>
+                    <line x1="19" y1="8" x2="19" y2="14"></line>
+                    <line x1="22" y1="11" x2="16" y2="11"></line>
+                </svg>
+                Clientes Asignados
+            </a>
         </nav>
         <div class="sidebar-footer">
             <div class="connection-status" id="dbStatus">
@@ -526,6 +535,86 @@
 
                 </div>
             </div>
+        </div>
+
+        <!-- Vista Clientes Asignados -->
+        <div id="vista-clientes-extra" class="hidden">
+
+            <!-- Panel de asignación -->
+            <div style="padding: 0 32px 24px;">
+                <div class="table-card" style="padding: 24px;">
+                    <h3 style="margin: 0 0 16px; font-size: 15px; font-weight: 600;">Asignar cliente a vendedor</h3>
+                    <div style="display: flex; gap: 12px; align-items: flex-end; flex-wrap: wrap;">
+                        <div class="form-group" style="margin: 0; flex: 1; min-width: 180px;">
+                            <label style="font-size: 12px; font-weight: 500; color: var(--text-secondary); display: block; margin-bottom: 6px;">Vendedor</label>
+                            <select id="ce-vendedor" style="width: 100%; padding: 8px 12px; border: 1px solid var(--border); border-radius: var(--radius); font-size: 13px; background: var(--bg-primary); color: var(--text-primary);">
+                                <option value="">Seleccionar vendedor...</option>
+                            </select>
+                        </div>
+                        <div class="form-group" style="margin: 0; flex: 2; min-width: 240px; position: relative;">
+                            <label style="font-size: 12px; font-weight: 500; color: var(--text-secondary); display: block; margin-bottom: 6px;">Buscar cliente</label>
+                            <input type="text" id="ce-buscar-cliente" placeholder="Escribe nombre o código del cliente..." autocomplete="off"
+                                style="width: 100%; padding: 8px 12px; border: 1px solid var(--border); border-radius: var(--radius); font-size: 13px; background: var(--bg-primary); color: var(--text-primary); box-sizing: border-box;">
+                            <div id="ce-dropdown" style="display: none; position: absolute; top: 100%; left: 0; right: 0; background: var(--bg-primary); border: 1px solid var(--border); border-radius: var(--radius); box-shadow: 0 4px 12px rgba(0,0,0,0.15); z-index: 100; max-height: 200px; overflow-y: auto;"></div>
+                        </div>
+                        <div class="form-group" style="margin: 0; flex: 1; min-width: 200px;">
+                            <label style="font-size: 12px; font-weight: 500; color: var(--text-secondary); display: block; margin-bottom: 6px;">Cliente seleccionado</label>
+                            <input type="text" id="ce-cliente-nombre-display" readonly placeholder="Ninguno"
+                                style="width: 100%; padding: 8px 12px; border: 1px solid var(--border); border-radius: var(--radius); font-size: 13px; background: var(--surface); color: var(--text-secondary); box-sizing: border-box;">
+                            <input type="hidden" id="ce-cliente-accountnum">
+                            <input type="hidden" id="ce-cliente-nombre">
+                        </div>
+                        <button class="btn btn-primary" onclick="asignarClienteExtra()" style="flex-shrink: 0;">
+                            Asignar
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Filtro por vendedor -->
+            <div style="padding: 0 32px 12px; display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
+                <div class="filter-group" style="min-width: 200px;">
+                    <label>Filtrar por vendedor</label>
+                    <select id="ce-filtro-vendedor" onchange="filtrarTablaClientesExtra()">
+                        <option value="todos">Todos los vendedores</option>
+                    </select>
+                </div>
+                <div class="search-box" style="flex: 1; min-width: 200px;">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" />
+                    </svg>
+                    <input type="text" id="ce-buscar-tabla" placeholder="Buscar en la tabla..." oninput="filtrarTablaClientesExtra()">
+                </div>
+            </div>
+
+            <!-- Tabla de asignaciones -->
+            <section class="table-card" style="margin: 0 0 32px;">
+                <div class="table-wrapper">
+                    <table id="ce-tabla">
+                        <thead>
+                            <tr>
+                                <th>Vendedor</th>
+                                <th>Cliente</th>
+                                <th>Código</th>
+                                <th>Fecha Asignación</th>
+                                <th class="text-center">Acción</th>
+                            </tr>
+                        </thead>
+                        <tbody id="ce-body"></tbody>
+                    </table>
+                </div>
+                <div id="ce-loading" class="loading-state">
+                    <div class="spinner"></div>
+                    <p>Cargando asignaciones...</p>
+                </div>
+                <div id="ce-empty" class="empty-state hidden">
+                    <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="1.5">
+                        <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+                        <circle cx="9" cy="7" r="4"></circle>
+                    </svg>
+                    <p>No hay clientes asignados aún</p>
+                </div>
+            </section>
         </div>
 
         <!-- Modal Detalle OV -->

@@ -18,7 +18,12 @@ const {
     deleteRango,
     getDashboardData,
     getAllCobros,
-    getTrackingLogs
+    getTrackingLogs,
+    getClientesExtra,
+    addClienteExtra,
+    deleteClienteExtra,
+    getVendedores,
+    buscarClientes
 } = require('./dbConnection');
 const { getAccessToken } = require('./auth');
 const axios = require('axios');
@@ -267,6 +272,61 @@ app.post('/api/sync/trigger', async (req, res) => {
     try {
         await pollCycle();
         res.json({ ok: true, log: getSyncLog().slice(-10) });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// --- API CLIENTES EXTRA POR VENDEDOR ---
+
+app.get('/api/vendedores', async (req, res) => {
+    try {
+        const vendedores = await getVendedores();
+        res.json(vendedores);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+app.get('/api/clientes-buscar', async (req, res) => {
+    try {
+        const clientes = await buscarClientes(req.query.q || '');
+        res.json(clientes);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+app.get('/api/clientes-extra', async (req, res) => {
+    try {
+        const vendedor = req.query.vendedor || null;
+        const data = await getClientesExtra(vendedor);
+        res.json(data);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+app.post('/api/clientes-extra', async (req, res) => {
+    try {
+        const { vendedor_nombre, cliente_accountnum, cliente_nombre } = req.body;
+        if (!vendedor_nombre || !cliente_accountnum || !cliente_nombre) {
+            return res.status(400).json({ error: 'Faltan datos requeridos' });
+        }
+        await addClienteExtra(vendedor_nombre, cliente_accountnum, cliente_nombre);
+        res.status(201).json({ ok: true });
+    } catch (err) {
+        if (err.message && err.message.includes('UQ_vce_vendedor_cliente')) {
+            return res.status(409).json({ error: 'Este cliente ya está asignado a ese vendedor' });
+        }
+        res.status(500).json({ error: err.message });
+    }
+});
+
+app.delete('/api/clientes-extra/:id', async (req, res) => {
+    try {
+        await deleteClienteExtra(parseInt(req.params.id));
+        res.json({ ok: true });
     } catch (err) {
         res.status(500).json({ error: err.message });
     }

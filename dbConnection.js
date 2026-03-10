@@ -69,6 +69,21 @@ async function ensureColumnExists() {
             ALTER TABLE [dbo].[vendedor_dynamics_map] ADD secretario_personnel_number NVARCHAR(50) NULL;
         END
     `);
+
+    // Tabla para clientes extra asignados a vendedores
+    await db.request().query(`
+        IF NOT EXISTS (SELECT 1 FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME = 'vendedor_cliente_extra')
+        BEGIN
+            CREATE TABLE [dbo].[vendedor_cliente_extra] (
+                id INT IDENTITY(1,1) PRIMARY KEY,
+                vendedor_nombre NVARCHAR(200) NOT NULL,
+                cliente_accountnum NVARCHAR(50) NOT NULL,
+                cliente_nombre NVARCHAR(300) NOT NULL,
+                fecha_asignacion DATETIME DEFAULT GETDATE(),
+                CONSTRAINT UQ_vce_vendedor_cliente UNIQUE (vendedor_nombre, cliente_accountnum)
+            );
+        END
+    `);
 }
 
 async function getAllOrders() {
@@ -404,6 +419,68 @@ async function getDashboardData(filters = {}) {
     };
 }
 
+// === Clientes Extra por Vendedor ===
+
+async function getClientesExtra(vendedorNombre) {
+    const db = await getPool();
+    const req = db.request();
+    let where = '';
+    if (vendedorNombre) {
+        where = "WHERE vendedor_nombre = @vendedor";
+        req.input('vendedor', sql.NVarChar(200), vendedorNombre);
+    }
+    const result = await req.query(`
+        SELECT id, vendedor_nombre, cliente_accountnum, cliente_nombre, fecha_asignacion
+        FROM [dbo].[vendedor_cliente_extra]
+        ${where}
+        ORDER BY vendedor_nombre, cliente_nombre
+    `);
+    return result.recordset;
+}
+
+async function addClienteExtra(vendedorNombre, clienteAccountnum, clienteNombre) {
+    const db = await getPool();
+    await db.request()
+        .input('vendedor', sql.NVarChar(200), vendedorNombre)
+        .input('accountnum', sql.NVarChar(50), clienteAccountnum)
+        .input('nombre', sql.NVarChar(300), clienteNombre)
+        .query(`
+            INSERT INTO [dbo].[vendedor_cliente_extra] (vendedor_nombre, cliente_accountnum, cliente_nombre)
+            VALUES (@vendedor, @accountnum, @nombre)
+        `);
+}
+
+async function deleteClienteExtra(id) {
+    const db = await getPool();
+    await db.request()
+        .input('id', sql.Int, id)
+        .query('DELETE FROM [dbo].[vendedor_cliente_extra] WHERE id = @id');
+}
+
+async function getVendedores() {
+    const db = await getPool();
+    const result = await db.request().query(`
+        SELECT vendedor_nombre FROM [dbo].[vendedor_dynamics_map]
+        WHERE vendedor_nombre IS NOT NULL AND vendedor_nombre <> ''
+        ORDER BY vendedor_nombre
+    `);
+    return result.recordset.map(r => r.vendedor_nombre);
+}
+
+async function buscarClientes(query) {
+    const db = await getPool();
+    const result = await db.request()
+        .input('q', sql.NVarChar(200), '%' + (query || '') + '%')
+        .query(`
+            SELECT TOP 30 accountnum, custname
+            FROM [dbo].[custtable]
+            WHERE (custname LIKE @q OR accountnum LIKE @q)
+              AND accountnum IS NOT NULL AND accountnum <> ''
+            ORDER BY custname
+        `);
+    return result.recordset;
+}
+
 async function closePool() {
     if (pool) {
         await pool.close();
@@ -533,5 +610,10 @@ module.exports = {
     deleteRango,
     getDashboardData,
     getAllCobros,
-    getTrackingLogs
+    getTrackingLogs,
+    getClientesExtra,
+    addClienteExtra,
+    deleteClienteExtra,
+    getVendedores,
+    buscarClientes
 };
