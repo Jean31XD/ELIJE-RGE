@@ -278,57 +278,6 @@ app.post('/api/sync/trigger', async (req, res) => {
     }
 });
 
-// --- DIAGNÓSTICO CLIENTES EXTRA ---
-app.get('/api/debug/clientes-extra', async (req, res) => {
-    try {
-        const db = await getPool();
-
-        // 1. ¿Existe la tabla?
-        const tablaExiste = await db.request().query(`
-            SELECT COUNT(*) AS existe FROM INFORMATION_SCHEMA.TABLES
-            WHERE TABLE_NAME = 'vendedor_cliente_extra'
-        `);
-
-        // 2. ¿Cuántos registros tiene?
-        let registros = 0;
-        let filas = [];
-        if (tablaExiste.recordset[0].existe > 0) {
-            const r = await db.request().query(`SELECT * FROM [dbo].[vendedor_cliente_extra]`);
-            registros = r.recordset.length;
-            filas = r.recordset;
-        }
-
-        // 3. ¿Cómo está vendedor_dynamics_map?
-        const mapa = await db.request().query(`
-            SELECT vendedor_nombre, personnel_number FROM [dbo].[vendedor_dynamics_map]
-            WHERE personnel_number IS NOT NULL AND personnel_number <> ''
-        `);
-
-        // 4. Simular el JOIN que hace el PHP
-        let joinTest = [];
-        if (tablaExiste.recordset[0].existe > 0 && filas.length > 0) {
-            const joinRes = await db.request().query(`
-                SELECT vce.vendedor_nombre, vce.cliente_accountnum, vce.cliente_nombre,
-                       vdm.personnel_number
-                FROM [dbo].[vendedor_cliente_extra] vce
-                INNER JOIN [dbo].[vendedor_dynamics_map] vdm
-                    ON vce.vendedor_nombre = vdm.vendedor_nombre
-            `);
-            joinTest = joinRes.recordset;
-        }
-
-        res.json({
-            tabla_existe: tablaExiste.recordset[0].existe > 0,
-            registros_en_tabla: registros,
-            filas,
-            vendedor_dynamics_map: mapa.recordset,
-            join_resultado: joinTest
-        });
-    } catch (err) {
-        res.status(500).json({ error: err.message });
-    }
-});
-
 // --- API CLIENTES EXTRA POR VENDEDOR ---
 
 app.get('/api/vendedores', async (req, res) => {
@@ -360,8 +309,7 @@ app.get('/api/clientes', async (req, res) => {
 
 app.get('/api/clientes-extra', async (req, res) => {
     try {
-        const vendedor = req.query.vendedor || null;
-        const data = await getClientesExtra(vendedor);
+        const data = await getClientesExtra(req.query.empleado || null);
         res.json(data);
     } catch (err) {
         res.status(500).json({ error: err.message });
@@ -370,14 +318,14 @@ app.get('/api/clientes-extra', async (req, res) => {
 
 app.post('/api/clientes-extra', async (req, res) => {
     try {
-        const { vendedor_nombre, cliente_accountnum, cliente_nombre } = req.body;
-        if (!vendedor_nombre || !cliente_accountnum || !cliente_nombre) {
+        const { vendedor_nombre, empleado_responsable, cliente_accountnum, cliente_nombre } = req.body;
+        if (!vendedor_nombre || !empleado_responsable || !cliente_accountnum || !cliente_nombre) {
             return res.status(400).json({ error: 'Faltan datos requeridos' });
         }
-        await addClienteExtra(vendedor_nombre, cliente_accountnum, cliente_nombre);
+        await addClienteExtra(vendedor_nombre, empleado_responsable, cliente_accountnum, cliente_nombre);
         res.status(201).json({ ok: true });
     } catch (err) {
-        if (err.message && err.message.includes('UQ_vce_vendedor_cliente')) {
+        if (err.message && err.message.includes('UQ_vce_emp_cliente')) {
             return res.status(409).json({ error: 'Este cliente ya está asignado a ese vendedor' });
         }
         res.status(500).json({ error: err.message });

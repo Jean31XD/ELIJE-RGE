@@ -2336,7 +2336,10 @@ async function cargarClientesExtra() {
         loading.classList.add('hidden');
 
         // Poblar selects de vendedores
-        const opcionesVendedor = vendedores.map(v => `<option value="${escapeHtml(v)}">${escapeHtml(v)}</option>`).join('');
+        // value = empleado_responsable (clave que usa la app), texto = vendedor_nombre
+        const opcionesVendedor = vendedores.map(v =>
+            `<option value="${escapeHtml(v.empleado_responsable)}" data-nombre="${escapeHtml(v.vendedor_nombre)}">${escapeHtml(v.vendedor_nombre)}</option>`
+        ).join('');
         document.getElementById('ce-vendedor').innerHTML = '<option value="">Seleccionar vendedor...</option>' + opcionesVendedor;
 
         const filtroVendedor = document.getElementById('ce-filtro-vendedor');
@@ -2384,7 +2387,7 @@ function filtrarTablaClientesExtra() {
     const busq = (document.getElementById('ce-buscar-tabla')?.value || '').toLowerCase().trim();
 
     clientesExtraFiltrados = todosLosClientesExtra.filter(a => {
-        if (vendedor !== 'todos' && a.vendedor_nombre !== vendedor) return false;
+        if (vendedor !== 'todos' && a.empleado_responsable !== vendedor) return false;
         if (busq) {
             const texto = `${a.vendedor_nombre} ${a.cliente_nombre} ${a.cliente_accountnum}`.toLowerCase();
             if (!texto.includes(busq)) return false;
@@ -2423,18 +2426,25 @@ function renderizarTablaClientesExtra() {
 }
 
 async function asignarClienteExtra() {
-    const vendedor = document.getElementById('ce-vendedor').value;
+    const selVendedor = document.getElementById('ce-vendedor');
+    const empleadoResponsable = selVendedor.value;
+    const vendedorNombre = selVendedor.options[selVendedor.selectedIndex]?.dataset?.nombre || '';
     const accountnum = document.getElementById('ce-cliente-accountnum').value;
     const nombre = document.getElementById('ce-cliente-nombre').value;
 
-    if (!vendedor) { showToast('Selecciona un vendedor', 'warning'); return; }
+    if (!empleadoResponsable) { showToast('Selecciona un vendedor', 'warning'); return; }
     if (!accountnum) { showToast('Selecciona un cliente de la lista', 'warning'); return; }
 
     try {
         const res = await fetch('/api/clientes-extra', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ vendedor_nombre: vendedor, cliente_accountnum: accountnum, cliente_nombre: nombre })
+            body: JSON.stringify({
+                vendedor_nombre: vendedorNombre,
+                empleado_responsable: empleadoResponsable,
+                cliente_accountnum: accountnum,
+                cliente_nombre: nombre
+            })
         });
         const data = await res.json();
         if (!res.ok) { showToast(data.error || 'Error al asignar', 'error'); return; }

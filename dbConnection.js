@@ -77,11 +77,23 @@ async function ensureColumnExists() {
             CREATE TABLE [dbo].[vendedor_cliente_extra] (
                 id INT IDENTITY(1,1) PRIMARY KEY,
                 vendedor_nombre NVARCHAR(200) NOT NULL,
+                empleado_responsable NVARCHAR(100) NOT NULL,
                 cliente_accountnum NVARCHAR(50) NOT NULL,
                 cliente_nombre NVARCHAR(300) NOT NULL,
                 fecha_asignacion DATETIME DEFAULT GETDATE(),
-                CONSTRAINT UQ_vce_vendedor_cliente UNIQUE (vendedor_nombre, cliente_accountnum)
+                CONSTRAINT UQ_vce_emp_cliente UNIQUE (empleado_responsable, cliente_accountnum)
             );
+        END
+    `);
+    // Si la tabla ya existia sin la columna empleado_responsable, agregarla
+    await db.request().query(`
+        IF EXISTS (SELECT 1 FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME = 'vendedor_cliente_extra')
+        AND NOT EXISTS (
+            SELECT 1 FROM INFORMATION_SCHEMA.COLUMNS
+            WHERE TABLE_NAME = 'vendedor_cliente_extra' AND COLUMN_NAME = 'empleado_responsable'
+        )
+        BEGIN
+            ALTER TABLE [dbo].[vendedor_cliente_extra] ADD empleado_responsable NVARCHAR(100) NOT NULL DEFAULT '';
         END
     `);
 }
@@ -421,16 +433,16 @@ async function getDashboardData(filters = {}) {
 
 // === Clientes Extra por Vendedor ===
 
-async function getClientesExtra(vendedorNombre) {
+async function getClientesExtra(vendedorEmpleado) {
     const db = await getPool();
     const req = db.request();
     let where = '';
-    if (vendedorNombre) {
-        where = "WHERE vendedor_nombre = @vendedor";
-        req.input('vendedor', sql.NVarChar(200), vendedorNombre);
+    if (vendedorEmpleado) {
+        where = "WHERE empleado_responsable = @emp";
+        req.input('emp', sql.NVarChar(100), vendedorEmpleado);
     }
     const result = await req.query(`
-        SELECT id, vendedor_nombre, cliente_accountnum, cliente_nombre, fecha_asignacion
+        SELECT id, vendedor_nombre, empleado_responsable, cliente_accountnum, cliente_nombre, fecha_asignacion
         FROM [dbo].[vendedor_cliente_extra]
         ${where}
         ORDER BY vendedor_nombre, cliente_nombre
@@ -438,15 +450,16 @@ async function getClientesExtra(vendedorNombre) {
     return result.recordset;
 }
 
-async function addClienteExtra(vendedorNombre, clienteAccountnum, clienteNombre) {
+async function addClienteExtra(vendedorNombre, empleadoResponsable, clienteAccountnum, clienteNombre) {
     const db = await getPool();
     await db.request()
         .input('vendedor', sql.NVarChar(200), vendedorNombre)
+        .input('emp', sql.NVarChar(100), empleadoResponsable)
         .input('accountnum', sql.NVarChar(50), clienteAccountnum)
         .input('nombre', sql.NVarChar(300), clienteNombre)
         .query(`
-            INSERT INTO [dbo].[vendedor_cliente_extra] (vendedor_nombre, cliente_accountnum, cliente_nombre)
-            VALUES (@vendedor, @accountnum, @nombre)
+            INSERT INTO [dbo].[vendedor_cliente_extra] (vendedor_nombre, empleado_responsable, cliente_accountnum, cliente_nombre)
+            VALUES (@vendedor, @emp, @accountnum, @nombre)
         `);
 }
 
@@ -460,11 +473,15 @@ async function deleteClienteExtra(id) {
 async function getVendedores() {
     const db = await getPool();
     const result = await db.request().query(`
-        SELECT vendedor_nombre FROM [dbo].[vendedor_dynamics_map]
-        WHERE vendedor_nombre IS NOT NULL AND vendedor_nombre <> ''
+        SELECT DISTINCT
+            LTRIM(RTRIM(Vendedor)) AS vendedor_nombre,
+            LTRIM(RTRIM(Empleado_responsable)) AS empleado_responsable
+        FROM [dbo].[cartera_cliente]
+        WHERE Vendedor IS NOT NULL AND Vendedor <> ''
+          AND Empleado_responsable IS NOT NULL AND Empleado_responsable <> ''
         ORDER BY vendedor_nombre
     `);
-    return result.recordset.map(r => r.vendedor_nombre);
+    return result.recordset;
 }
 
 async function buscarClientes(query) {
