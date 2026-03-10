@@ -2310,19 +2310,18 @@ function cerrarDetalleOV() {
 
 // === Clientes Asignados a Vendedores ===
 
-let todosLosClientesExtra = [];
-let clientesExtraFiltrados = [];
-
+let todosLosClientesExtra      = [];
+let clientesExtraFiltrados     = [];
 let todosLosClientesDisponibles = [];
+let cePaginaActual             = 1;
+let ceRegistrosPorPagina       = 20;
 
 async function cargarClientesExtra() {
     const loading = document.getElementById('ce-loading');
-    const empty = document.getElementById('ce-empty');
-    const body = document.getElementById('ce-body');
-
     loading.classList.remove('hidden');
-    body.innerHTML = '';
-    empty.classList.add('hidden');
+    document.getElementById('ce-body').innerHTML = '';
+    document.getElementById('ce-empty').classList.add('hidden');
+    document.getElementById('ce-pagination').innerHTML = '';
 
     try {
         const [asignaciones, vendedores, clientes] = await Promise.all([
@@ -2331,35 +2330,86 @@ async function cargarClientesExtra() {
             fetch('/api/clientes').then(r => r.json())
         ]);
 
-        todosLosClientesExtra = asignaciones;
+        todosLosClientesExtra      = asignaciones;
         todosLosClientesDisponibles = clientes;
         loading.classList.add('hidden');
 
-        // Poblar selects de vendedores
-        // value = empleado_responsable (clave que usa la app), texto = vendedor_nombre
         const opcionesVendedor = vendedores.map(v =>
             `<option value="${escapeHtml(v.empleado_responsable)}" data-nombre="${escapeHtml(v.vendedor_nombre)}">${escapeHtml(v.vendedor_nombre)}</option>`
         ).join('');
-        document.getElementById('ce-vendedor').innerHTML = '<option value="">Seleccionar vendedor...</option>' + opcionesVendedor;
 
-        const filtroVendedor = document.getElementById('ce-filtro-vendedor');
-        filtroVendedor.innerHTML = '<option value="todos">Todos los vendedores</option>' + opcionesVendedor;
+        document.getElementById('ce-vendedor').innerHTML =
+            '<option value="">Seleccionar vendedor...</option>' + opcionesVendedor;
+        document.getElementById('ce-filtro-vendedor').innerHTML =
+            '<option value="todos">Todos</option>' + opcionesVendedor;
 
         poblarSelectClientes(clientes);
         filtrarTablaClientesExtra();
+        renderizarKpisCE();
     } catch (err) {
-        loading.innerHTML = `<p style="color: var(--danger);">Error: ${err.message}</p>`;
+        loading.innerHTML = `<p style="color:var(--danger);">Error: ${escapeHtml(err.message)}</p>`;
     }
+}
+
+function renderizarKpisCE() {
+    const total      = todosLosClientesExtra.length;
+    const vendedores = new Set(todosLosClientesExtra.map(a => a.empleado_responsable)).size;
+    const hoy        = new Date().toDateString();
+    const recientes  = todosLosClientesExtra.filter(a => a.fecha_asignacion && new Date(a.fecha_asignacion).toDateString() === hoy).length;
+
+    document.getElementById('ce-kpis').innerHTML = `
+        <div class="ce-kpi">
+            <div class="ce-kpi-icon ce-kpi-icon--blue">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/>
+                    <path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+                </svg>
+            </div>
+            <div class="ce-kpi-text">
+                <span class="ce-kpi-val">${total}</span>
+                <span class="ce-kpi-lbl">Asignaciones totales</span>
+            </div>
+        </div>
+        <div class="ce-kpi">
+            <div class="ce-kpi-icon ce-kpi-icon--green">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>
+                </svg>
+            </div>
+            <div class="ce-kpi-text">
+                <span class="ce-kpi-val">${vendedores}</span>
+                <span class="ce-kpi-lbl">Vendedores con extras</span>
+            </div>
+        </div>
+        <div class="ce-kpi">
+            <div class="ce-kpi-icon ce-kpi-icon--amber">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/>
+                    <line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>
+                </svg>
+            </div>
+            <div class="ce-kpi-text">
+                <span class="ce-kpi-val">${recientes}</span>
+                <span class="ce-kpi-lbl">Asignadas hoy</span>
+            </div>
+        </div>
+    `;
 }
 
 function poblarSelectClientes(lista) {
     const sel = document.getElementById('ce-select-cliente');
     sel.innerHTML = '<option value="">-- Selecciona un cliente --</option>' +
-        lista.map(c => `<option value="${escapeHtml(c.accountnum)}" data-nombre="${escapeHtml(c.custname)}">${escapeHtml(c.custname)} (${escapeHtml(c.accountnum)})</option>`).join('');
-    // Limpiar selección previa
+        lista.map(c =>
+            `<option value="${escapeHtml(c.accountnum)}" data-nombre="${escapeHtml(c.custname)}">${escapeHtml(c.custname)} (${escapeHtml(c.accountnum)})</option>`
+        ).join('');
     document.getElementById('ce-cliente-accountnum').value = '';
     document.getElementById('ce-cliente-nombre').value = '';
     sel.value = '';
+    document.getElementById('ce-selected-display').className = 'ce-selected-empty';
+    document.getElementById('ce-selected-display').innerHTML = `
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
+        </svg>Ninguno`;
 }
 
 function filtrarSelectClientes() {
@@ -2368,18 +2418,41 @@ function filtrarSelectClientes() {
         ? todosLosClientesDisponibles.filter(c =>
             c.custname.toLowerCase().includes(q) || c.accountnum.toLowerCase().includes(q))
         : todosLosClientesDisponibles;
-    poblarSelectClientes(filtrados);
+    const sel = document.getElementById('ce-select-cliente');
+    sel.innerHTML = '<option value="">-- Selecciona un cliente --</option>' +
+        filtrados.map(c =>
+            `<option value="${escapeHtml(c.accountnum)}" data-nombre="${escapeHtml(c.custname)}">${escapeHtml(c.custname)} (${escapeHtml(c.accountnum)})</option>`
+        ).join('');
+    sel.value = '';
 }
 
 function seleccionarClienteLista(sel) {
     const opt = sel.options[sel.selectedIndex];
+    const display = document.getElementById('ce-selected-display');
     if (!opt || !opt.value) {
         document.getElementById('ce-cliente-accountnum').value = '';
         document.getElementById('ce-cliente-nombre').value = '';
+        display.className = 'ce-selected-empty';
+        display.innerHTML = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
+        </svg>Ninguno`;
         return;
     }
     document.getElementById('ce-cliente-accountnum').value = opt.value;
     document.getElementById('ce-cliente-nombre').value = opt.dataset.nombre;
+    display.className = 'ce-selected-badge';
+    display.innerHTML = `
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/>
+        </svg>
+        <span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escapeHtml(opt.dataset.nombre)}</span>
+        <span style="font-size:11px;opacity:0.7;">${escapeHtml(opt.value)}</span>`;
+}
+
+function limpiarFiltrosCE() {
+    document.getElementById('ce-buscar-tabla').value = '';
+    document.getElementById('ce-filtro-vendedor').value = 'todos';
+    filtrarTablaClientesExtra();
 }
 
 function filtrarTablaClientesExtra() {
@@ -2395,69 +2468,141 @@ function filtrarTablaClientesExtra() {
         return true;
     });
 
-    renderizarTablaClientesExtra();
+    cePaginaActual = 1;
+    renderizarPaginaCE();
 }
 
-function renderizarTablaClientesExtra() {
-    const body = document.getElementById('ce-body');
+function renderizarPaginaCE() {
+    const total   = clientesExtraFiltrados.length;
+    const inicio  = (cePaginaActual - 1) * ceRegistrosPorPagina;
+    const fin     = inicio + ceRegistrosPorPagina;
+    const pagData = clientesExtraFiltrados.slice(inicio, fin);
+
+    renderizarTablaClientesExtra(pagData, total);
+    renderizarPaginacionCE(Math.ceil(total / ceRegistrosPorPagina), total, inicio + 1, Math.min(fin, total));
+}
+
+function renderizarTablaClientesExtra(datos, total) {
+    const body  = document.getElementById('ce-body');
     const empty = document.getElementById('ce-empty');
 
-    if (clientesExtraFiltrados.length === 0) {
+    if (total === 0) {
         body.innerHTML = '';
         empty.classList.remove('hidden');
+        document.getElementById('ce-pagination').innerHTML = '';
         return;
     }
-
     empty.classList.add('hidden');
-    body.innerHTML = clientesExtraFiltrados.map(a => `
+
+    body.innerHTML = datos.map(a => {
+        const fecha = a.fecha_asignacion
+            ? new Date(a.fecha_asignacion).toLocaleDateString('es-DO', { day:'2-digit', month:'short', year:'numeric' })
+            : '-';
+        return `
         <tr>
-            <td>${escapeHtml(a.vendedor_nombre)}</td>
-            <td>${escapeHtml(a.cliente_nombre)}</td>
-            <td><code>${escapeHtml(a.cliente_accountnum)}</code></td>
-            <td>${a.fecha_asignacion ? new Date(a.fecha_asignacion).toLocaleDateString('es-DO') : '-'}</td>
+            <td><span class="ce-vendor-badge">${escapeHtml(a.vendedor_nombre)}</span></td>
+            <td style="font-weight:500;">${escapeHtml(a.cliente_nombre)}</td>
+            <td><span class="ce-code">${escapeHtml(a.cliente_accountnum)}</span></td>
+            <td><span class="ce-date">${fecha}</span></td>
             <td class="text-center">
-                <button class="btn btn-ghost btn-sm" style="color: var(--danger);"
-                    onclick="eliminarClienteExtra(${a.id}, '${escapeHtml(a.cliente_nombre)}', '${escapeHtml(a.vendedor_nombre)}')">
+                <button class="btn-quitar"
+                    onclick="eliminarClienteExtra(${a.id}, '${escapeHtml(a.cliente_nombre).replace(/'/g,"\\'")}', '${escapeHtml(a.vendedor_nombre).replace(/'/g,"\\'")}')">
                     Quitar
                 </button>
             </td>
-        </tr>
-    `).join('');
+        </tr>`;
+    }).join('');
+}
+
+function renderizarPaginacionCE(totalPaginas, total, desde, hasta) {
+    const container = document.getElementById('ce-pagination');
+    if (total === 0) { container.innerHTML = ''; return; }
+
+    let paginas = '';
+    const max = 5;
+    let start = Math.max(1, cePaginaActual - Math.floor(max / 2));
+    let end   = Math.min(totalPaginas, start + max - 1);
+    if (end - start < max - 1) start = Math.max(1, end - max + 1);
+
+    if (start > 1) {
+        paginas += `<button class="page-btn" onclick="ceCambiarPagina(1)">1</button>`;
+        if (start > 2) paginas += `<span class="page-ellipsis">…</span>`;
+    }
+    for (let i = start; i <= end; i++) {
+        paginas += `<button class="page-btn ${i === cePaginaActual ? 'active' : ''}" onclick="ceCambiarPagina(${i})">${i}</button>`;
+    }
+    if (end < totalPaginas) {
+        if (end < totalPaginas - 1) paginas += `<span class="page-ellipsis">…</span>`;
+        paginas += `<button class="page-btn" onclick="ceCambiarPagina(${totalPaginas})">${totalPaginas}</button>`;
+    }
+
+    container.innerHTML = `
+        <div class="pagination-info">
+            Mostrando <strong>${desde}–${hasta}</strong> de <strong>${total}</strong> asignaciones
+        </div>
+        <div class="pagination-controls">
+            <select class="page-size-select" onchange="ceCambiarRegistros(this.value)">
+                <option value="10"  ${ceRegistrosPorPagina===10  ? 'selected':''}>10 por página</option>
+                <option value="20"  ${ceRegistrosPorPagina===20  ? 'selected':''}>20 por página</option>
+                <option value="50"  ${ceRegistrosPorPagina===50  ? 'selected':''}>50 por página</option>
+                <option value="100" ${ceRegistrosPorPagina===100 ? 'selected':''}>100 por página</option>
+            </select>
+            <div class="page-buttons">
+                <button class="page-btn nav-btn" onclick="ceCambiarPagina(${cePaginaActual-1})" ${cePaginaActual===1?'disabled':''}>
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg>
+                </button>
+                ${paginas}
+                <button class="page-btn nav-btn" onclick="ceCambiarPagina(${cePaginaActual+1})" ${cePaginaActual===totalPaginas?'disabled':''}>
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
+                </button>
+            </div>
+        </div>`;
+}
+
+function ceCambiarPagina(p) {
+    const total = Math.ceil(clientesExtraFiltrados.length / ceRegistrosPorPagina);
+    if (p < 1 || p > total) return;
+    cePaginaActual = p;
+    renderizarPaginaCE();
+}
+
+function ceCambiarRegistros(val) {
+    ceRegistrosPorPagina = parseInt(val);
+    cePaginaActual = 1;
+    renderizarPaginaCE();
 }
 
 async function asignarClienteExtra() {
-    const selVendedor = document.getElementById('ce-vendedor');
+    const selVendedor       = document.getElementById('ce-vendedor');
     const empleadoResponsable = selVendedor.value;
-    const vendedorNombre = selVendedor.options[selVendedor.selectedIndex]?.dataset?.nombre || '';
-    const accountnum = document.getElementById('ce-cliente-accountnum').value;
-    const nombre = document.getElementById('ce-cliente-nombre').value;
+    const vendedorNombre    = selVendedor.options[selVendedor.selectedIndex]?.dataset?.nombre || '';
+    const accountnum        = document.getElementById('ce-cliente-accountnum').value;
+    const nombre            = document.getElementById('ce-cliente-nombre').value;
 
     if (!empleadoResponsable) { showToast('Selecciona un vendedor', 'warning'); return; }
-    if (!accountnum) { showToast('Selecciona un cliente de la lista', 'warning'); return; }
+    if (!accountnum)          { showToast('Selecciona un cliente de la lista', 'warning'); return; }
+
+    const btn = document.querySelector('.ce-btn-asignar');
+    if (btn) { btn.disabled = true; btn.textContent = 'Guardando...'; }
 
     try {
         const res = await fetch('/api/clientes-extra', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                vendedor_nombre: vendedorNombre,
-                empleado_responsable: empleadoResponsable,
-                cliente_accountnum: accountnum,
-                cliente_nombre: nombre
-            })
+            body: JSON.stringify({ vendedor_nombre: vendedorNombre, empleado_responsable: empleadoResponsable, cliente_accountnum: accountnum, cliente_nombre: nombre })
         });
         const data = await res.json();
         if (!res.ok) { showToast(data.error || 'Error al asignar', 'error'); return; }
 
-        // Limpiar selección
         document.getElementById('ce-vendedor').value = '';
         document.getElementById('ce-filtro-cliente').value = '';
         poblarSelectClientes(todosLosClientesDisponibles);
-
         showToast('Cliente asignado correctamente', 'success');
         cargarClientesExtra();
-    } catch (err) {
+    } catch {
         showToast('Error de conexión', 'error');
+    } finally {
+        if (btn) { btn.disabled = false; btn.innerHTML = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg> Asignar`; }
     }
 }
 
@@ -2470,6 +2615,7 @@ async function eliminarClienteExtra(id, clienteNombre, vendedorNombre) {
         showToast('Asignación eliminada', 'success');
         todosLosClientesExtra = todosLosClientesExtra.filter(a => a.id !== id);
         filtrarTablaClientesExtra();
+        renderizarKpisCE();
     } catch {
         showToast('Error de conexión', 'error');
     }

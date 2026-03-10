@@ -2361,3 +2361,209 @@ th.sort-desc .sort-icon::after {
 tbody tr.clickable-row {
     cursor: pointer;
 }
+/* ============================================
+   === Módulo Clientes Asignados (CE) ===
+   ============================================ */
+
+/* KPI bar */
+.ce-kpi-bar {
+    display: flex;
+    gap: 16px;
+    padding: 24px 32px 8px;
+    flex-wrap: wrap;
+}
+
+.ce-kpi {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 16px 24px;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    flex: 1;
+    min-width: 160px;
+    box-shadow: var(--shadow);
+}
+
+.ce-kpi-icon {
+    width: 40px;
+    height: 40px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.ce-kpi-icon--blue  { background: #eff6ff; color: #2563eb; }
+.ce-kpi-icon--green { background: #f0fdf4; color: #16a34a; }
+.ce-kpi-icon--amber { background: #fffbeb; color: #d97706; }
+
+.ce-kpi-text { display: flex; flex-direction: column; }
+.ce-kpi-val  { font-size: 22px; font-weight: 700; color: var(--text); line-height: 1.1; }
+.ce-kpi-lbl  { font-size: 12px; color: var(--text-secondary); margin-top: 2px; }
+
+/* Form card */
+.ce-section-pad { padding: 16px 32px 4px; }
+
+.ce-form-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    overflow: hidden;
+}
+
+.ce-form-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 14px 20px;
+    border-bottom: 1px solid var(--border);
+    background: var(--bg);
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text);
+}
+
+.ce-form-body {
+    display: flex;
+    gap: 16px;
+    padding: 20px;
+    align-items: flex-start;
+    flex-wrap: wrap;
+}
+
+.ce-field {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    flex: 1;
+    min-width: 180px;
+}
+
+.ce-field--wide  { flex: 2; min-width: 240px; }
+.ce-field--action { flex: 0 0 auto; min-width: 110px; }
+
+.ce-label {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.ce-select,
+.ce-input {
+    padding: 8px 12px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    font-size: 13px;
+    background: var(--surface);
+    color: var(--text);
+    width: 100%;
+    transition: border-color 0.15s;
+}
+
+.ce-select:focus,
+.ce-input:focus { outline: none; border-color: var(--primary); }
+
+.ce-input--top {
+    border-radius: var(--radius) var(--radius) 0 0;
+    border-bottom-color: transparent;
+}
+
+.ce-input--top:focus { border-bottom-color: transparent; }
+
+.ce-client-list {
+    width: 100%;
+    border: 1px solid var(--border);
+    border-radius: 0 0 var(--radius) var(--radius);
+    font-size: 13px;
+    background: var(--surface);
+    color: var(--text);
+    overflow-y: auto;
+}
+
+.ce-client-list option { padding: 6px 10px; }
+.ce-client-list option:checked { background: var(--primary); color: white; }
+
+.ce-selected-empty {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 12px;
+    border-radius: var(--radius);
+    border: 1px dashed var(--border);
+    font-size: 13px;
+    color: var(--text-secondary);
+    min-height: 38px;
+}
+
+.ce-selected-badge {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 12px;
+    border-radius: var(--radius);
+    border: 1px solid #bbf7d0;
+    background: #f0fdf4;
+    font-size: 13px;
+    font-weight: 500;
+    color: #15803d;
+    min-height: 38px;
+}
+
+.ce-selected-badge svg { flex-shrink: 0; }
+
+.ce-btn-asignar {
+    width: 100%;
+    justify-content: center;
+    gap: 6px;
+    padding: 9px 16px;
+    margin-top: 1px;
+}
+
+/* Table badge for vendedor */
+.ce-vendor-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 3px 10px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 500;
+    background: #eff6ff;
+    color: #1d4ed8;
+    white-space: nowrap;
+}
+
+.ce-code {
+    font-family: 'Courier New', monospace;
+    font-size: 12px;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    padding: 2px 8px;
+    border-radius: 4px;
+    color: var(--text-secondary);
+}
+
+.ce-date {
+    font-size: 12px;
+    color: var(--text-secondary);
+}
+
+.btn-quitar {
+    font-size: 12px;
+    padding: 4px 12px;
+    border-radius: 6px;
+    border: 1px solid #fecaca;
+    background: #fff5f5;
+    color: var(--danger);
+    cursor: pointer;
+    transition: all 0.15s;
+    font-weight: 500;
+}
+
+.btn-quitar:hover { background: #fee2e2; border-color: var(--danger); }
