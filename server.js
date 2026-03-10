@@ -278,6 +278,57 @@ app.post('/api/sync/trigger', async (req, res) => {
     }
 });
 
+// --- DIAGNÓSTICO CLIENTES EXTRA ---
+app.get('/api/debug/clientes-extra', async (req, res) => {
+    try {
+        const db = await getPool();
+
+        // 1. ¿Existe la tabla?
+        const tablaExiste = await db.request().query(`
+            SELECT COUNT(*) AS existe FROM INFORMATION_SCHEMA.TABLES
+            WHERE TABLE_NAME = 'vendedor_cliente_extra'
+        `);
+
+        // 2. ¿Cuántos registros tiene?
+        let registros = 0;
+        let filas = [];
+        if (tablaExiste.recordset[0].existe > 0) {
+            const r = await db.request().query(`SELECT * FROM [dbo].[vendedor_cliente_extra]`);
+            registros = r.recordset.length;
+            filas = r.recordset;
+        }
+
+        // 3. ¿Cómo está vendedor_dynamics_map?
+        const mapa = await db.request().query(`
+            SELECT vendedor_nombre, personnel_number FROM [dbo].[vendedor_dynamics_map]
+            WHERE personnel_number IS NOT NULL AND personnel_number <> ''
+        `);
+
+        // 4. Simular el JOIN que hace el PHP
+        let joinTest = [];
+        if (tablaExiste.recordset[0].existe > 0 && filas.length > 0) {
+            const joinRes = await db.request().query(`
+                SELECT vce.vendedor_nombre, vce.cliente_accountnum, vce.cliente_nombre,
+                       vdm.personnel_number
+                FROM [dbo].[vendedor_cliente_extra] vce
+                INNER JOIN [dbo].[vendedor_dynamics_map] vdm
+                    ON vce.vendedor_nombre = vdm.vendedor_nombre
+            `);
+            joinTest = joinRes.recordset;
+        }
+
+        res.json({
+            tabla_existe: tablaExiste.recordset[0].existe > 0,
+            registros_en_tabla: registros,
+            filas,
+            vendedor_dynamics_map: mapa.recordset,
+            join_resultado: joinTest
+        });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
 // --- API CLIENTES EXTRA POR VENDEDOR ---
 
 app.get('/api/vendedores', async (req, res) => {
