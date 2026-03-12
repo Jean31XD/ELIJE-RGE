@@ -111,8 +111,11 @@ async function createSalesOrderHeader(token, objPedido) {
         RequestedShippingDate: new Date(objPedido.fecha_pedido).toISOString().split('T')[0] + 'T12:00:00Z',
         CustomersOrderReference: (objPedido.vendedor_nombre || '').substring(0, 60),
         CommissionSalesRepresentativeGroupId: objPedido.vendedor_sales_group_id || '',
-        Comentario_custom: objPedido.observaciones || '',
     };
+
+    if (objPedido.observaciones) {
+        headerData.Comentario_Custom = objPedido.observaciones;
+    }
 
     if (objPedido.pedido_numero) {
         headerData.CustomerRequisitionNumber = objPedido.pedido_numero.substring(0, 50);
@@ -267,8 +270,11 @@ async function processOrder(token, objPedido) {
     const patchData = {
         CustomersOrderReference: (objPedido.vendedor_nombre || '').substring(0, 60),
         SalesOrderName: (objPedido.cliente_nombre || '').substring(0, 60),
-        Comentario_custom: objPedido.observaciones || '',
     };
+
+    if (objPedido.observaciones) {
+        patchData.Comentario_Custom = objPedido.observaciones;
+    }
 
     if (objPedido.pedido_numero) {
         patchData.CustomerRequisitionNumber = objPedido.pedido_numero.substring(0, 50);
@@ -350,8 +356,11 @@ async function repatchRecentOrders(token) {
                 CustomerRequisitionNumber: row.pedido_numero,
                 SalesOrderName: row.cliente_nombre,
                 CommissionSalesRepresentativeGroupId: row.vendedor_sales_group_id || '',
-                Comentario_custom: row.observaciones || '',
             };
+
+            if (row.observaciones) {
+                patchData.Comentario_Custom = row.observaciones;
+            }
 
             const taker = row.secretario_personnel_number || row.vendedor_personnel_number;
             if (taker) {
