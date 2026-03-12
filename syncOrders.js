@@ -114,21 +114,19 @@ async function createSalesOrderHeader(token, objPedido) {
     };
 
     // Direccion de entrega desde libreta_direcciones
-    if (objPedido.direccion_city) {
-        headerData.DeliveryAddressCity = objPedido.direccion_city;
+    if (objPedido.direccion_location_id) {
+        headerData.DeliveryAddressLocationId = String(objPedido.direccion_location_id);
         headerData.DeliveryAddressCountryRegionId = 'DOM';
         headerData.DeliveryAddressCountryRegionISOCode = 'DO';
-        headerData.DeliveryAddressCountyId = objPedido.direccion_county || '';
-        headerData.DeliveryAddressDescription = objPedido.direccion_description || '';
-        headerData.DeliveryAddressDistrictName = objPedido.direccion_districtname || '';
-        headerData.DeliveryAddressStreet = objPedido.direccion_street || '';
-        headerData.DeliveryAddressZipCode = objPedido.direccion_zipcode || '';
-        if (objPedido.direccion_location_id) {
-            headerData.DeliveryAddressLocationId = String(objPedido.direccion_location_id);
-        }
-        log(`  Direccion -> ${objPedido.direccion_description || objPedido.cliente_direccion}: ${objPedido.direccion_city}, ${objPedido.direccion_districtname || ''}`);
+        if (objPedido.direccion_city) headerData.DeliveryAddressCity = objPedido.direccion_city;
+        if (objPedido.direccion_county) headerData.DeliveryAddressCountyId = objPedido.direccion_county;
+        if (objPedido.direccion_description) headerData.DeliveryAddressDescription = objPedido.direccion_description;
+        if (objPedido.direccion_districtname) headerData.DeliveryAddressDistrictName = objPedido.direccion_districtname;
+        if (objPedido.direccion_street) headerData.DeliveryAddressStreet = objPedido.direccion_street;
+        if (objPedido.direccion_zipcode) headerData.DeliveryAddressZipCode = objPedido.direccion_zipcode;
+        log(`  Direccion -> ${objPedido.direccion_description || '-'}: ${objPedido.direccion_city || ''}, ${objPedido.direccion_districtname || ''} [LocationId: ${objPedido.direccion_location_id}]`);
     } else if (objPedido.cliente_direccion) {
-        log(`  ADVERTENCIA: No se encontró dirección en libreta para "${objPedido.cliente_direccion}" (cuenta: ${customerAccount})`);
+        log(`  ADVERTENCIA: No se encontró dirección en libreta para "${(objPedido.cliente_direccion || '').substring(0, 60)}..." (cuenta: ${customerAccount})`);
     }
 
     if (objPedido.observaciones) {
@@ -295,18 +293,16 @@ async function processOrder(token, objPedido) {
     }
 
     // Direccion de entrega en el PATCH
-    if (objPedido.direccion_city) {
-        patchData.DeliveryAddressCity = objPedido.direccion_city;
+    if (objPedido.direccion_location_id) {
+        patchData.DeliveryAddressLocationId = String(objPedido.direccion_location_id);
         patchData.DeliveryAddressCountryRegionId = 'DOM';
         patchData.DeliveryAddressCountryRegionISOCode = 'DO';
-        patchData.DeliveryAddressCountyId = objPedido.direccion_county || '';
-        patchData.DeliveryAddressDescription = objPedido.direccion_description || '';
-        patchData.DeliveryAddressDistrictName = objPedido.direccion_districtname || '';
-        patchData.DeliveryAddressStreet = objPedido.direccion_street || '';
-        patchData.DeliveryAddressZipCode = objPedido.direccion_zipcode || '';
-        if (objPedido.direccion_location_id) {
-            patchData.DeliveryAddressLocationId = String(objPedido.direccion_location_id);
-        }
+        if (objPedido.direccion_city) patchData.DeliveryAddressCity = objPedido.direccion_city;
+        if (objPedido.direccion_county) patchData.DeliveryAddressCountyId = objPedido.direccion_county;
+        if (objPedido.direccion_description) patchData.DeliveryAddressDescription = objPedido.direccion_description;
+        if (objPedido.direccion_districtname) patchData.DeliveryAddressDistrictName = objPedido.direccion_districtname;
+        if (objPedido.direccion_street) patchData.DeliveryAddressStreet = objPedido.direccion_street;
+        if (objPedido.direccion_zipcode) patchData.DeliveryAddressZipCode = objPedido.direccion_zipcode;
     }
 
     if (objPedido.pedido_numero) {
