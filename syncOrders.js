@@ -113,6 +113,10 @@ async function createSalesOrderHeader(token, objPedido) {
         CommissionSalesRepresentativeGroupId: objPedido.vendedor_sales_group_id || '',
     };
 
+    if (objPedido.direccion_name) {
+        headerData.DeliveryAddressName = objPedido.direccion_name;
+    }
+
     if (objPedido.observaciones) {
         headerData.Comentario_Custom = objPedido.observaciones;
     }
@@ -271,6 +275,10 @@ async function processOrder(token, objPedido) {
         CustomersOrderReference: (objPedido.vendedor_nombre || '').substring(0, 60),
         SalesOrderName: (objPedido.cliente_nombre || '').substring(0, 60),
     };
+
+    if (objPedido.direccion_name) {
+        patchData.DeliveryAddressName = objPedido.direccion_name;
+    }
 
     if (objPedido.observaciones) {
         patchData.Comentario_Custom = objPedido.observaciones;
