@@ -113,6 +113,24 @@ async function createSalesOrderHeader(token, objPedido) {
         CommissionSalesRepresentativeGroupId: objPedido.vendedor_sales_group_id || '',
     };
 
+    // Direccion de entrega desde libreta_direcciones
+    if (objPedido.direccion_city) {
+        headerData.DeliveryAddressCity = objPedido.direccion_city;
+        headerData.DeliveryAddressCountryRegionId = 'DOM';
+        headerData.DeliveryAddressCountryRegionISOCode = 'DO';
+        headerData.DeliveryAddressCountyId = objPedido.direccion_county || '';
+        headerData.DeliveryAddressDescription = objPedido.direccion_description || '';
+        headerData.DeliveryAddressDistrictName = objPedido.direccion_districtname || '';
+        headerData.DeliveryAddressStreet = objPedido.direccion_street || '';
+        headerData.DeliveryAddressZipCode = objPedido.direccion_zipcode || '';
+        if (objPedido.direccion_location_id) {
+            headerData.DeliveryAddressLocationId = String(objPedido.direccion_location_id);
+        }
+        log(`  Direccion -> ${objPedido.direccion_description || objPedido.cliente_direccion}: ${objPedido.direccion_city}, ${objPedido.direccion_districtname || ''}`);
+    } else if (objPedido.cliente_direccion) {
+        log(`  ADVERTENCIA: No se encontró dirección en libreta para "${objPedido.cliente_direccion}" (cuenta: ${customerAccount})`);
+    }
+
     if (objPedido.observaciones) {
         headerData.Comentario_Custom = objPedido.observaciones;
     }
@@ -274,6 +292,21 @@ async function processOrder(token, objPedido) {
 
     if (objPedido.observaciones) {
         patchData.Comentario_Custom = objPedido.observaciones;
+    }
+
+    // Direccion de entrega en el PATCH
+    if (objPedido.direccion_city) {
+        patchData.DeliveryAddressCity = objPedido.direccion_city;
+        patchData.DeliveryAddressCountryRegionId = 'DOM';
+        patchData.DeliveryAddressCountryRegionISOCode = 'DO';
+        patchData.DeliveryAddressCountyId = objPedido.direccion_county || '';
+        patchData.DeliveryAddressDescription = objPedido.direccion_description || '';
+        patchData.DeliveryAddressDistrictName = objPedido.direccion_districtname || '';
+        patchData.DeliveryAddressStreet = objPedido.direccion_street || '';
+        patchData.DeliveryAddressZipCode = objPedido.direccion_zipcode || '';
+        if (objPedido.direccion_location_id) {
+            patchData.DeliveryAddressLocationId = String(objPedido.direccion_location_id);
+        }
     }
 
     if (objPedido.pedido_numero) {
