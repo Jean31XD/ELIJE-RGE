@@ -103,7 +103,7 @@ async function getAllOrders() {
     const result = await db.request().query(`
         SELECT pedido_id, pedido_numero, cliente_nombre, cliente_rnc,
                vendedor_nombre, fecha_pedido, total,
-               observaciones, cliente_direccion,
+               observaciones,
                ISNULL(enviado_dynamics, 0) AS enviado_dynamics,
                dynamics_order_number, sync_error
         FROM [dbo].[pedidos]
@@ -120,19 +120,10 @@ async function getPendingOrders() {
                p.cliente_cuenta as pedido_cliente_cuenta,
                p.dynamics_order_number,
                p.observaciones,
-               p.cliente_direccion,
                m.personnel_number AS vendedor_personnel_number,
                m.sales_group_id AS vendedor_sales_group_id,
                -- Priorizar custtable (RNC) y Cartera_cliente (Nombre) sobre p.cliente_cuenta para evitar datos basura
-               COALESCE(ct.accountnum, c.accountnum, NULLIF(LTRIM(RTRIM(p.cliente_cuenta)), '')) AS cliente_accountnum,
-               -- Campos de direccion de entrega desde libreta_direcciones
-               ld.city AS direccion_city,
-               ld.county AS direccion_county,
-               ld.districtname AS direccion_districtname,
-               ld.directionname AS direccion_description,
-               ld.location AS direccion_location_id,
-               ld.street AS direccion_street,
-               ld.zipcode AS direccion_zipcode
+               COALESCE(ct.accountnum, c.accountnum, NULLIF(LTRIM(RTRIM(p.cliente_cuenta)), '')) AS cliente_accountnum
         FROM [dbo].[pedidos] p
         LEFT JOIN [dbo].[vendedor_dynamics_map] m
             ON UPPER(LTRIM(RTRIM(p.vendedor_nombre))) = UPPER(LTRIM(RTRIM(m.vendedor_nombre)))
@@ -140,10 +131,6 @@ async function getPendingOrders() {
             ON (p.cliente_rnc IS NOT NULL AND LTRIM(RTRIM(p.cliente_rnc)) <> '' AND LTRIM(RTRIM(p.cliente_rnc)) = LTRIM(RTRIM(ct.RNC)))
         LEFT JOIN [dbo].[Cartera_cliente] c
             ON UPPER(LTRIM(RTRIM(p.cliente_nombre))) = UPPER(LTRIM(RTRIM(c.custname)))
-        LEFT JOIN [dbo].[libreta_direcciones] ld
-            ON COALESCE(ct.accountnum, c.accountnum, NULLIF(LTRIM(RTRIM(p.cliente_cuenta)), '')) = ld.accountnum
-            AND LTRIM(RTRIM(p.cliente_direccion)) = LTRIM(RTRIM(ld.address))
-            AND (ld.IsDelete IS NULL OR ld.IsDelete = 0)
         WHERE ISNULL(p.enviado_dynamics, 0) = 0
           AND (p.estado IS NULL OR p.estado <> 'CANCELADO')
           AND (p.sync_error IS NULL OR p.sync_error = '')
@@ -163,18 +150,9 @@ async function getOrderById(pedidoId) {
                    p.cliente_cuenta as pedido_cliente_cuenta,
                    p.dynamics_order_number,
                    p.observaciones,
-                   p.cliente_direccion,
                    m.personnel_number AS vendedor_personnel_number,
                    m.sales_group_id AS vendedor_sales_group_id,
-                   COALESCE(ct.accountnum, c.accountnum, NULLIF(LTRIM(RTRIM(p.cliente_cuenta)), '')) AS cliente_accountnum,
-                   -- Campos de direccion de entrega desde libreta_direcciones
-                   ld.city AS direccion_city,
-                   ld.county AS direccion_county,
-                   ld.districtname AS direccion_districtname,
-                   ld.directionname AS direccion_description,
-                   ld.location AS direccion_location_id,
-                   ld.street AS direccion_street,
-                   ld.zipcode AS direccion_zipcode
+                   COALESCE(ct.accountnum, c.accountnum, NULLIF(LTRIM(RTRIM(p.cliente_cuenta)), '')) AS cliente_accountnum
             FROM [dbo].[pedidos] p
             LEFT JOIN [dbo].[vendedor_dynamics_map] m
                 ON UPPER(LTRIM(RTRIM(p.vendedor_nombre))) = UPPER(LTRIM(RTRIM(m.vendedor_nombre)))
@@ -182,10 +160,6 @@ async function getOrderById(pedidoId) {
                 ON (p.cliente_rnc IS NOT NULL AND LTRIM(RTRIM(p.cliente_rnc)) <> '' AND LTRIM(RTRIM(p.cliente_rnc)) = LTRIM(RTRIM(ct.RNC)))
             LEFT JOIN [dbo].[Cartera_cliente] c
                 ON UPPER(LTRIM(RTRIM(p.cliente_nombre))) = UPPER(LTRIM(RTRIM(c.custname)))
-            LEFT JOIN [dbo].[libreta_direcciones] ld
-                ON COALESCE(ct.accountnum, c.accountnum, NULLIF(LTRIM(RTRIM(p.cliente_cuenta)), '')) = ld.accountnum
-                AND UPPER(LTRIM(RTRIM(p.cliente_direccion))) = UPPER(LTRIM(RTRIM(ld.directionname)))
-                AND (ld.IsDelete IS NULL OR ld.IsDelete = 0)
             WHERE p.pedido_id = @pedidoId
         `);
     return result.recordset[0];
