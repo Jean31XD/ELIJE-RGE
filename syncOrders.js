@@ -111,6 +111,7 @@ async function createSalesOrderHeader(token, objPedido) {
         RequestedShippingDate: new Date(objPedido.fecha_pedido).toISOString().split('T')[0] + 'T12:00:00Z',
         CustomersOrderReference: (objPedido.vendedor_nombre || '').substring(0, 60),
         CommissionSalesRepresentativeGroupId: objPedido.vendedor_sales_group_id || '',
+        Comentario_custom: objPedido.observaciones || '',
     };
 
     if (objPedido.pedido_numero) {
@@ -266,6 +267,7 @@ async function processOrder(token, objPedido) {
     const patchData = {
         CustomersOrderReference: (objPedido.vendedor_nombre || '').substring(0, 60),
         SalesOrderName: (objPedido.cliente_nombre || '').substring(0, 60),
+        Comentario_custom: objPedido.observaciones || '',
     };
 
     if (objPedido.pedido_numero) {
@@ -308,6 +310,7 @@ async function repatchRecentOrders(token) {
     // Pedidos enviados en las últimas 4 horas con vendedor mapeado
     const result = await db.request().query(`
         SELECT TOP 30 p.dynamics_order_number, p.pedido_numero, p.vendedor_nombre, p.cliente_nombre,
+               p.observaciones,
                m.personnel_number AS vendedor_personnel_number,
                m.sales_group_id AS vendedor_sales_group_id,
                m.secretario_personnel_number
@@ -347,6 +350,7 @@ async function repatchRecentOrders(token) {
                 CustomerRequisitionNumber: row.pedido_numero,
                 SalesOrderName: row.cliente_nombre,
                 CommissionSalesRepresentativeGroupId: row.vendedor_sales_group_id || '',
+                Comentario_custom: row.observaciones || '',
             };
 
             const taker = row.secretario_personnel_number || row.vendedor_personnel_number;
