@@ -124,7 +124,13 @@ async function getPendingOrders() {
                m.sales_group_id AS vendedor_sales_group_id,
                -- Priorizar custtable (RNC) y Cartera_cliente (Nombre) sobre p.cliente_cuenta para evitar datos basura
                COALESCE(ct.accountnum, c.accountnum, NULLIF(LTRIM(RTRIM(p.cliente_cuenta)), '')) AS cliente_accountnum,
-               ld.directionname AS direccion_name
+               ld.directionname AS direccion_name,
+               ld.street AS direccion_street,
+               ld.zipcode AS direccion_zipcode,
+               ld.city AS direccion_city,
+               ld.districtname AS direccion_districtname,
+               ld.county AS direccion_county,
+               ld.location AS direccion_location_id
         FROM [dbo].[pedidos] p
         LEFT JOIN [dbo].[vendedor_dynamics_map] m
             ON UPPER(LTRIM(RTRIM(p.vendedor_nombre))) = UPPER(LTRIM(RTRIM(m.vendedor_nombre)))
@@ -158,7 +164,13 @@ async function getOrderById(pedidoId) {
                    m.personnel_number AS vendedor_personnel_number,
                    m.sales_group_id AS vendedor_sales_group_id,
                    COALESCE(ct.accountnum, c.accountnum, NULLIF(LTRIM(RTRIM(p.cliente_cuenta)), '')) AS cliente_accountnum,
-                   ld.directionname AS direccion_name
+                   ld.directionname AS direccion_name,
+                   ld.street AS direccion_street,
+                   ld.zipcode AS direccion_zipcode,
+                   ld.city AS direccion_city,
+                   ld.districtname AS direccion_districtname,
+                   ld.county AS direccion_county,
+                   ld.location AS direccion_location_id
             FROM [dbo].[pedidos] p
             LEFT JOIN [dbo].[vendedor_dynamics_map] m
                 ON UPPER(LTRIM(RTRIM(p.vendedor_nombre))) = UPPER(LTRIM(RTRIM(m.vendedor_nombre)))
