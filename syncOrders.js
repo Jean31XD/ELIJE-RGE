@@ -117,6 +117,7 @@ async function createSalesOrderHeader(token, objPedido) {
         headerData.DeliveryAddressDescription = objPedido.direccion_name;
         headerData.DeliveryAddressCountryRegionId = 'DOM';
         if (objPedido.direccion_street) headerData.DeliveryAddressStreet = objPedido.direccion_street;
+        if (objPedido.direccion_zipcode) headerData.DeliveryAddressZipCode = objPedido.direccion_zipcode;
     }
 
     if (objPedido.observaciones) {
@@ -282,6 +283,7 @@ async function processOrder(token, objPedido) {
         patchData.DeliveryAddressDescription = objPedido.direccion_name;
         patchData.DeliveryAddressCountryRegionId = 'DOM';
         if (objPedido.direccion_street) patchData.DeliveryAddressStreet = objPedido.direccion_street;
+        if (objPedido.direccion_zipcode) patchData.DeliveryAddressZipCode = objPedido.direccion_zipcode;
     }
 
     if (objPedido.observaciones) {
