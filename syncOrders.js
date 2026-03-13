@@ -115,6 +115,7 @@ async function createSalesOrderHeader(token, objPedido) {
 
     if (objPedido.direccion_name) {
         headerData.DeliveryAddressDescription = objPedido.direccion_name;
+        headerData.DeliveryAddressCountryRegionId = 'DOM';
     }
 
     if (objPedido.observaciones) {
@@ -278,6 +279,7 @@ async function processOrder(token, objPedido) {
 
     if (objPedido.direccion_name) {
         patchData.DeliveryAddressDescription = objPedido.direccion_name;
+        patchData.DeliveryAddressCountryRegionId = 'DOM';
     }
 
     if (objPedido.observaciones) {
