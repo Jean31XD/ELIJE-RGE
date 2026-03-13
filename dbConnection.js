@@ -371,6 +371,8 @@ async function getDashboardData(filters = {}) {
             const r = db.request();
             if (filters.vendedor) r.input('vendedor', filters.vendedor);
             if (filters.cliente) r.input('cliente', filters.cliente);
+            if (filters.desde) r.input('desde', filters.desde);
+            if (filters.hasta) r.input('hasta', filters.hasta);
             return r.query(`
                 SELECT TOP 10
                     vendedor_nombre,
@@ -387,6 +389,8 @@ async function getDashboardData(filters = {}) {
             const r = db.request();
             if (filters.vendedor) r.input('vendedor', filters.vendedor);
             if (filters.cliente) r.input('cliente', filters.cliente);
+            if (filters.desde) r.input('desde', filters.desde);
+            if (filters.hasta) r.input('hasta', filters.hasta);
             return r.query(`
                 SELECT TOP 10
                     cliente_nombre,
@@ -429,6 +433,8 @@ async function getDashboardData(filters = {}) {
             const r = db.request();
             if (filters.vendedor) r.input('vendedor', filters.vendedor);
             if (filters.cliente) r.input('cliente', filters.cliente);
+            if (filters.desde) r.input('desde', filters.desde);
+            if (filters.hasta) r.input('hasta', filters.hasta);
             return r.query(`
                 SELECT TOP 5
                     pedido_numero, cliente_nombre, vendedor_nombre,
