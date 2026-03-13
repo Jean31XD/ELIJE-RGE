@@ -117,11 +117,6 @@ async function createSalesOrderHeader(token, objPedido) {
         headerData.DeliveryAddressDescription = objPedido.direccion_name;
         headerData.DeliveryAddressCountryRegionId = 'DOM';
         if (objPedido.direccion_street) headerData.DeliveryAddressStreet = objPedido.direccion_street;
-        if (objPedido.direccion_zipcode) headerData.DeliveryAddressZipCode = objPedido.direccion_zipcode;
-        if (objPedido.direccion_city) headerData.DeliveryAddressCity = objPedido.direccion_city;
-        if (objPedido.direccion_districtname) headerData.DeliveryAddressDistrictName = objPedido.direccion_districtname;
-        if (objPedido.direccion_county) headerData.DeliveryAddressCountyId = objPedido.direccion_county;
-        if (objPedido.direccion_location_id) headerData.DeliveryAddressLocationId = String(objPedido.direccion_location_id);
     }
 
     if (objPedido.observaciones) {
@@ -287,11 +282,6 @@ async function processOrder(token, objPedido) {
         patchData.DeliveryAddressDescription = objPedido.direccion_name;
         patchData.DeliveryAddressCountryRegionId = 'DOM';
         if (objPedido.direccion_street) patchData.DeliveryAddressStreet = objPedido.direccion_street;
-        if (objPedido.direccion_zipcode) patchData.DeliveryAddressZipCode = objPedido.direccion_zipcode;
-        if (objPedido.direccion_city) patchData.DeliveryAddressCity = objPedido.direccion_city;
-        if (objPedido.direccion_districtname) patchData.DeliveryAddressDistrictName = objPedido.direccion_districtname;
-        if (objPedido.direccion_county) patchData.DeliveryAddressCountyId = objPedido.direccion_county;
-        if (objPedido.direccion_location_id) patchData.DeliveryAddressLocationId = String(objPedido.direccion_location_id);
     }
 
     if (objPedido.observaciones) {
