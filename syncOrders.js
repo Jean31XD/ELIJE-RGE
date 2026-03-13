@@ -114,7 +114,7 @@ async function createSalesOrderHeader(token, objPedido) {
     };
 
     if (objPedido.direccion_name) {
-        headerData.DeliveryAddressName = objPedido.direccion_name;
+        headerData.DeliveryAddressDescription = objPedido.direccion_name;
     }
 
     if (objPedido.observaciones) {
@@ -277,7 +277,7 @@ async function processOrder(token, objPedido) {
     };
 
     if (objPedido.direccion_name) {
-        patchData.DeliveryAddressName = objPedido.direccion_name;
+        patchData.DeliveryAddressDescription = objPedido.direccion_name;
     }
 
     if (objPedido.observaciones) {

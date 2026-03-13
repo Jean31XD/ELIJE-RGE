@@ -103,7 +103,7 @@ async function getAllOrders() {
     const result = await db.request().query(`
         SELECT pedido_id, pedido_numero, cliente_nombre, cliente_rnc,
                vendedor_nombre, fecha_pedido, total,
-               observaciones,
+               observaciones, cliente_direccion,
                ISNULL(enviado_dynamics, 0) AS enviado_dynamics,
                dynamics_order_number, sync_error
         FROM [dbo].[pedidos]
