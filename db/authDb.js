@@ -303,9 +303,13 @@ async function deleteVendorGroup(id) {
 async function getAvailableVendors() {
     const db = await getPool();
     const result = await db.request().query(`
-        SELECT DISTINCT vendedor_nombre
-        FROM [dbo].[vendedor_dynamics_map]
-        WHERE vendedor_nombre IS NOT NULL AND vendedor_nombre <> ''
+        SELECT DISTINCT vendedor_nombre FROM (
+            SELECT vendedor_nombre FROM [dbo].[vendedor_dynamics_map]
+            WHERE vendedor_nombre IS NOT NULL AND vendedor_nombre <> ''
+            UNION
+            SELECT DISTINCT vendedor_nombre FROM [dbo].[pedidos]
+            WHERE vendedor_nombre IS NOT NULL AND vendedor_nombre <> ''
+        ) AS v
         ORDER BY vendedor_nombre
     `);
     return result.recordset.map(r => r.vendedor_nombre);
