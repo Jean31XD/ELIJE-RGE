@@ -1,49 +1,9 @@
 /**
- * login.js - Microsoft MSAL login logic
- * Loaded from CDN: msal-browser.min.js must be loaded before this script
+ * login.js - Autenticación Microsoft via server-side OAuth redirect
+ * Sin MSAL en el browser - el servidor maneja el flujo completo
  */
 
-let msalInstance = null;
-
-// Initialize MSAL after fetching config from server
-async function initMsal() {
-    if (msalInstance) return msalInstance;
-    try {
-        const res = await fetch('/api/auth/config');
-        if (!res.ok) {
-            const errData = await res.json().catch(() => ({}));
-            throw new Error(errData.error || 'Error obteniendo configuración de MSAL');
-        }
-        const config = await res.json();
-
-        if (!config.clientId || !config.tenantId) {
-            throw new Error('Configuración de autenticación inválida recibida del servidor.');
-        }
-
-        const msalConfig = {
-            auth: {
-                clientId: config.clientId,
-                authority: 'https://login.microsoftonline.com/' + config.tenantId,
-                redirectUri: window.location.origin
-            },
-            cache: {
-                cacheLocation: 'localStorage',
-                storeAuthStateInCookie: false
-            }
-        };
-
-        if (typeof msal === 'undefined') {
-            throw new Error('La librería MSAL no cargó. Verifica tu conexión a internet.');
-        }
-        msalInstance = new msal.PublicClientApplication(msalConfig);
-        return msalInstance;
-    } catch (err) {
-        console.error('[Login] Error inicializando MSAL:', err);
-        throw err;
-    }
-}
-
-async function iniciarLoginMicrosoft() {
+function iniciarLoginMicrosoft() {
     const btn = document.getElementById('btn-ms-login');
     const errorEl = document.getElementById('login-error');
     const loadingEl = document.getElementById('login-loading');
@@ -52,62 +12,8 @@ async function iniciarLoginMicrosoft() {
     if (errorEl) errorEl.style.display = 'none';
     if (loadingEl) loadingEl.style.display = 'flex';
 
-    try {
-        const msalApp = await initMsal();
-
-        const loginRequest = {
-            scopes: ['openid', 'profile', 'email']
-        };
-
-        let result;
-        try {
-            result = await msalApp.loginPopup(loginRequest);
-        } catch (err) {
-            if (err.errorCode === 'user_cancelled') {
-                if (loadingEl) loadingEl.style.display = 'none';
-                if (btn) btn.disabled = false;
-                return;
-            }
-            throw err;
-        }
-
-        const idToken = result.idToken;
-
-        // Exchange MS ID token for app session JWT
-        const authRes = await fetch('/api/auth/login', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ idToken })
-        });
-
-        const authData = await authRes.json();
-
-        if (!authRes.ok) {
-            throw new Error(authData.error || 'Error de autenticación');
-        }
-
-        // Store session
-        localStorage.setItem('app_token', authData.token);
-        localStorage.setItem('app_user', JSON.stringify(authData.user));
-
-        // Hide overlay and show app
-        if (loadingEl) loadingEl.style.display = 'none';
-        if (btn) btn.disabled = false;
-
-        document.getElementById('login-overlay').classList.add('hidden');
-
-        if (typeof initApp === 'function') {
-            initApp();
-        }
-    } catch (err) {
-        console.error('[Login] Error:', err);
-        if (errorEl) {
-            errorEl.textContent = err.message || 'Error al iniciar sesión';
-            errorEl.style.display = 'block';
-        }
-        if (loadingEl) loadingEl.style.display = 'none';
-        if (btn) btn.disabled = false;
-    }
+    // Redirigir al servidor, que redirige a Microsoft
+    window.location.href = '/api/auth/microsoft';
 }
 
 function getAuthHeaders() {
@@ -127,8 +33,10 @@ function getCurrentUser() {
 function cerrarSesion() {
     localStorage.removeItem('app_token');
     localStorage.removeItem('app_user');
-    msalInstance = null;
+    mostrarLoginOverlay();
+}
 
+function mostrarLoginOverlay() {
     const overlay = document.getElementById('login-overlay');
     if (overlay) overlay.classList.remove('hidden');
 
@@ -142,28 +50,50 @@ function cerrarSesion() {
     if (chip) chip.style.display = 'none';
 }
 
-function mostrarLoginOverlay() {
-    const overlay = document.getElementById('login-overlay');
-    if (overlay) overlay.classList.remove('hidden');
+// Verifica si hay token en la URL (viene del callback OAuth) o en localStorage
+function checkAuth() {
+    const params = new URLSearchParams(window.location.search);
+    const token = params.get('token');
+    const userParam = params.get('user');
+    const authError = params.get('auth_error');
 
-    const sidebar = document.querySelector('.sidebar');
-    if (sidebar) sidebar.classList.add('auth-hidden');
+    // Mostrar error si Microsoft devolvió uno
+    if (authError) {
+        mostrarLoginOverlay();
+        const errorEl = document.getElementById('login-error');
+        if (errorEl) {
+            errorEl.textContent = decodeURIComponent(authError);
+            errorEl.style.display = 'block';
+        }
+        window.history.replaceState({}, '', '/');
+        return;
+    }
 
-    const main = document.querySelector('.main-content');
-    if (main) main.classList.add('auth-hidden');
-}
+    // Token recibido desde el callback OAuth
+    if (token && userParam) {
+        try {
+            const user = JSON.parse(decodeURIComponent(userParam));
+            localStorage.setItem('app_token', token);
+            localStorage.setItem('app_user', JSON.stringify(user));
+        } catch {
+            mostrarLoginOverlay();
+            return;
+        }
+        window.history.replaceState({}, '', '/');
+        initApp();
+        return;
+    }
 
-function checkExistingAuth() {
-    const token = localStorage.getItem('app_token');
-    if (!token) {
+    // Verificar token existente en localStorage
+    const storedToken = localStorage.getItem('app_token');
+    if (!storedToken) {
         mostrarLoginOverlay();
         return;
     }
 
-    // Decode JWT exp without library
     try {
-        const parts = token.split('.');
-        if (parts.length !== 3) throw new Error('bad token');
+        const parts = storedToken.split('.');
+        if (parts.length !== 3) throw new Error('token malformado');
         const payload = JSON.parse(atob(parts[1].replace(/-/g, '+').replace(/_/g, '/')));
         if (payload.exp * 1000 < Date.now()) {
             localStorage.removeItem('app_token');
@@ -171,18 +101,10 @@ function checkExistingAuth() {
             mostrarLoginOverlay();
             return;
         }
-        // Token valid - init app
-        if (typeof initApp === 'function') {
-            initApp();
-        }
+        initApp();
     } catch {
         localStorage.removeItem('app_token');
         localStorage.removeItem('app_user');
         mostrarLoginOverlay();
     }
-}
-
-// Called from DOMContentLoaded in app.js
-function checkAuth() {
-    checkExistingAuth();
 }
