@@ -98,6 +98,10 @@ async function ensureColumnExists() {
     `);
 }
 
+function addVendorParams(request, vendors) {
+    vendors.forEach((v, i) => request.input(`vf${i}`, sql.NVarChar(200), v));
+}
+
 function buildVendorInClause(request, vendors, columnName = 'vendedor_nombre') {
     const params = vendors.map((v, i) => {
         request.input(`vf${i}`, sql.NVarChar(200), v);
@@ -359,6 +363,7 @@ async function getDashboardData(filters = {}, vendorFilter = null) {
             if (filters.cliente) r.input('cliente', filters.cliente);
             if (filters.desde) r.input('desde', filters.desde);
             if (filters.hasta) r.input('hasta', filters.hasta);
+            if (vendorFilter && vendorFilter.length > 0) addVendorParams(r, vendorFilter);
             const dailyCond = filters.desde || filters.hasta
                 ? conditions.join(' AND ')
                 : `fecha_pedido >= DATEADD(DAY, -30, GETDATE())` + (conditions.length ? ' AND ' + conditions.join(' AND ') : '');
@@ -380,6 +385,7 @@ async function getDashboardData(filters = {}, vendorFilter = null) {
             if (filters.cliente) r.input('cliente', filters.cliente);
             if (filters.desde) r.input('desde', filters.desde);
             if (filters.hasta) r.input('hasta', filters.hasta);
+            if (vendorFilter && vendorFilter.length > 0) addVendorParams(r, vendorFilter);
             const monthlyCond = filters.desde || filters.hasta
                 ? conditions.join(' AND ')
                 : `fecha_pedido >= DATEADD(MONTH, -12, GETDATE())` + (conditions.length ? ' AND ' + conditions.join(' AND ') : '');
@@ -401,6 +407,7 @@ async function getDashboardData(filters = {}, vendorFilter = null) {
             if (filters.cliente) r.input('cliente', filters.cliente);
             if (filters.desde) r.input('desde', filters.desde);
             if (filters.hasta) r.input('hasta', filters.hasta);
+            if (vendorFilter && vendorFilter.length > 0) addVendorParams(r, vendorFilter);
             return r.query(`
                 SELECT TOP 10
                     vendedor_nombre,
@@ -419,6 +426,7 @@ async function getDashboardData(filters = {}, vendorFilter = null) {
             if (filters.cliente) r.input('cliente', filters.cliente);
             if (filters.desde) r.input('desde', filters.desde);
             if (filters.hasta) r.input('hasta', filters.hasta);
+            if (vendorFilter && vendorFilter.length > 0) addVendorParams(r, vendorFilter);
             return r.query(`
                 SELECT TOP 10
                     cliente_nombre,
@@ -463,6 +471,7 @@ async function getDashboardData(filters = {}, vendorFilter = null) {
             if (filters.cliente) r.input('cliente', filters.cliente);
             if (filters.desde) r.input('desde', filters.desde);
             if (filters.hasta) r.input('hasta', filters.hasta);
+            if (vendorFilter && vendorFilter.length > 0) addVendorParams(r, vendorFilter);
             return r.query(`
                 SELECT TOP 5
                     pedido_numero, cliente_nombre, vendedor_nombre,

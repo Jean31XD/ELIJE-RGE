@@ -149,18 +149,8 @@ async function abrirModalUsuario(id) {
                 `).join('');
         }
 
-        // Individual vendors
-        const vendorsDiv = document.getElementById('modal-user-vendors');
-        if (vendorsDiv) {
-            vendorsDiv.innerHTML = vendorsRes.length === 0
-                ? '<p style="color:var(--text-secondary);font-size:13px;">No hay vendedores disponibles</p>'
-                : vendorsRes.map(v => `
-                    <label class="check-label">
-                        <input type="checkbox" name="vendor" value="${escapeHtml(v)}" ${(userRes.vendors || []).includes(v) ? 'checked' : ''}>
-                        ${escapeHtml(v)}
-                    </label>
-                `).join('');
-        }
+        // Individual vendors (con búsqueda)
+        renderVendorChecklist('modal-user-vendors', vendorsRes, userRes.vendors || [], 'vendor');
 
     } catch (err) {
         document.getElementById('modal-usuario-titulo').textContent = 'Error';
@@ -293,19 +283,8 @@ async function abrirModalGrupo(id) {
             }
         }
 
-        const vendorsDiv = document.getElementById('modal-group-vendors');
-        if (vendorsDiv) {
-            if (vendors.length === 0) {
-                vendorsDiv.innerHTML = '<p style="color:var(--text-secondary);font-size:13px;">No hay vendedores disponibles</p>';
-            } else {
-                vendorsDiv.innerHTML = vendors.map(v => `
-                    <label class="check-label">
-                        <input type="checkbox" name="gvendor" value="${escapeHtml(v)}" ${selectedVendors.includes(v) ? 'checked' : ''}>
-                        ${escapeHtml(v)}
-                    </label>
-                `).join('');
-            }
-        }
+        // Vendors del grupo (con búsqueda)
+        renderVendorChecklist('modal-group-vendors', vendors, selectedVendors, 'gvendor');
     } catch (err) {
         alert('Error al cargar vendedores: ' + err.message);
     }
@@ -370,6 +349,49 @@ async function eliminarGrupo(id) {
     } catch (err) {
         showToastAdmin('Error: ' + err.message, 'error');
     }
+}
+
+// ============ VENDOR CHECKLIST WITH SEARCH ============
+
+function renderVendorChecklist(containerId, vendors, selectedValues, inputName) {
+    const container = document.getElementById(containerId);
+    if (!container) return;
+
+    if (!vendors || vendors.length === 0) {
+        container.innerHTML = '<p style="color:var(--text-secondary);font-size:13px;">No hay vendedores disponibles</p>';
+        return;
+    }
+
+    const searchId = `${containerId}-search`;
+    const listId = `${containerId}-list`;
+
+    container.innerHTML = `
+        <div style="position:sticky;top:0;background:var(--surface);padding-bottom:8px;z-index:1;">
+            <input
+                type="text"
+                id="${searchId}"
+                placeholder="Buscar vendedor..."
+                oninput="filtrarVendorChecklist('${searchId}','${listId}')"
+                style="width:100%;padding:6px 10px;border:1px solid var(--border);border-radius:var(--radius);font-size:13px;box-sizing:border-box;">
+        </div>
+        <div id="${listId}">
+            ${vendors.map(v => `
+                <label class="check-label" data-name="${escapeHtml(v.toLowerCase())}">
+                    <input type="checkbox" name="${inputName}" value="${escapeHtml(v)}" ${selectedValues.includes(v) ? 'checked' : ''}>
+                    ${escapeHtml(v)}
+                </label>
+            `).join('')}
+        </div>
+    `;
+}
+
+function filtrarVendorChecklist(searchId, listId) {
+    const query = document.getElementById(searchId)?.value.toLowerCase().trim() || '';
+    const list = document.getElementById(listId);
+    if (!list) return;
+    list.querySelectorAll('label[data-name]').forEach(label => {
+        label.style.display = label.dataset.name.includes(query) ? '' : 'none';
+    });
 }
 
 // ============ HELPERS ============

@@ -2,7 +2,8 @@
  * routes/authRoutes.js - Microsoft OAuth login (server-side authorization code flow)
  * Mismo enfoque que AppLogistica PHP: sin MSAL en browser, el servidor maneja el OAuth
  */
-require('dotenv').config();
+const path = require('path');
+require('dotenv').config({ path: path.join(__dirname, '..', '.env') });
 const express = require('express');
 const router = express.Router();
 const jwt = require('jsonwebtoken');
