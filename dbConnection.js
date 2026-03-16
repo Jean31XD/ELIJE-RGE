@@ -98,15 +98,30 @@ async function ensureColumnExists() {
     `);
 }
 
-async function getAllOrders() {
+function buildVendorInClause(request, vendors, columnName = 'vendedor_nombre') {
+    const params = vendors.map((v, i) => {
+        request.input(`vf${i}`, sql.NVarChar(200), v);
+        return `@vf${i}`;
+    });
+    return `${columnName} IN (${params.join(',')})`;
+}
+
+async function getAllOrders(vendorFilter = null) {
     const db = await getPool();
-    const result = await db.request().query(`
+    const req = db.request();
+    let where = '';
+    if (vendorFilter !== null && Array.isArray(vendorFilter)) {
+        if (vendorFilter.length === 0) return []; // no vendors assigned
+        where = `WHERE ${buildVendorInClause(req, vendorFilter)}`;
+    }
+    const result = await req.query(`
         SELECT pedido_id, pedido_numero, cliente_nombre, cliente_rnc,
                vendedor_nombre, fecha_pedido, total,
                observaciones, cliente_direccion,
                ISNULL(enviado_dynamics, 0) AS enviado_dynamics,
                dynamics_order_number, sync_error
         FROM [dbo].[pedidos]
+        ${where}
         ORDER BY fecha_pedido DESC
     `);
     return result.recordset;
@@ -253,7 +268,7 @@ async function resetOrderSyncStatus(pedidoId) {
 
 // === Dashboard ===
 
-async function getDashboardData(filters = {}) {
+async function getDashboardData(filters = {}, vendorFilter = null) {
     const db = await getPool();
 
     // Build WHERE clause based on filters
@@ -275,6 +290,16 @@ async function getDashboardData(filters = {}) {
     if (filters.hasta) {
         conditions.push("CONVERT(DATE, fecha_pedido) <= @hasta");
         request.input('hasta', filters.hasta);
+    }
+    if (vendorFilter !== null && Array.isArray(vendorFilter)) {
+        if (vendorFilter.length === 0) {
+            // Return empty dashboard if user has no vendors
+            return {
+                kpis: { total_pedidos: 0, monto_total: 0, promedio_pedido: 0, enviados_dynamics: 0, pendientes: 0, con_error: 0, total_vendedores: 0, total_clientes: 0 },
+                dailyTrend: [], monthlyTrend: [], topVendedores: [], topClientes: [], topCategorias: [], recentOrders: []
+            };
+        }
+        conditions.push(buildVendorInClause(request, vendorFilter));
     }
 
     const whereClause = conditions.length > 0 ? 'WHERE ' + conditions.join(' AND ') : '';
@@ -298,6 +323,9 @@ async function getDashboardData(filters = {}) {
     if (filters.hasta) {
         catConditions.push("CONVERT(DATE, p.fecha_pedido) <= @hasta");
         catRequest.input('hasta', filters.hasta);
+    }
+    if (vendorFilter !== null && Array.isArray(vendorFilter) && vendorFilter.length > 0) {
+        catConditions.push(buildVendorInClause(catRequest, vendorFilter, 'p.vendedor_nombre'));
     }
     const catWhereClause = catConditions.length > 0 ? 'WHERE ' + catConditions.join(' AND ') : '';
 
@@ -553,8 +581,9 @@ async function getRangos() {
     return result.recordset;
 }
 
-async function getAllCobros() {
+async function getAllCobros(vendorFilter = null) {
     const db = await getPool();
+    // cobros_realizados does not have a vendedor column, so we skip the vendor filter
     const result = await db.request().query(`
         SELECT id, invoice, accountnum, custname, monto_cobrado,
                saldo_anterior, saldo_nuevo, fecha_cobro, cobrador,
@@ -565,9 +594,13 @@ async function getAllCobros() {
     return result.recordset;
 }
 
-async function getTrackingLogs(filters = {}) {
+async function getTrackingLogs(filters = {}, vendorFilter = null) {
     const db = await getPool();
     const req = db.request();
+
+    if (vendorFilter !== null && Array.isArray(vendorFilter) && vendorFilter.length === 0) {
+        return []; // no vendors assigned
+    }
 
     let whereClause = '1=1';
 
@@ -586,6 +619,9 @@ async function getTrackingLogs(filters = {}) {
     if (filters.action) {
         whereClause += ` AND t.[action] = @action`;
         req.input('action', sql.VarChar(50), filters.action);
+    }
+    if (vendorFilter !== null && Array.isArray(vendorFilter) && vendorFilter.length > 0) {
+        whereClause += ` AND ${buildVendorInClause(req, vendorFilter, 't.vendedor_nombre')}`;
     }
 
     const result = await req.query(`
@@ -652,6 +688,7 @@ async function deleteRango(id) {
 module.exports = {
     getPool,
     ensureColumnExists,
+    buildVendorInClause,
     getAllOrders,
     getPendingOrders,
     getOrderById,

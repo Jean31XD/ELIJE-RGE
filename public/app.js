@@ -1,3 +1,16 @@
+// Auth helper — delegates to login.js (loaded before app.js)
+function apiFetch(url, options = {}) {
+    options.headers = Object.assign({}, options.headers || {},
+        typeof getAuthHeaders === 'function' ? getAuthHeaders() : {});
+    return fetch(url, options).then(res => {
+        if (res.status === 401) {
+            if (typeof mostrarLoginOverlay === 'function') mostrarLoginOverlay();
+            throw new Error('No autenticado');
+        }
+        return res;
+    });
+}
+
 let todosLosPedidos = [];
 let pedidoActual = null;
 let pedidosFiltrados = [];
@@ -43,6 +56,54 @@ let vendedorColorIndex = 0;
 
 // === Inicializacion ===
 window.addEventListener('DOMContentLoaded', () => {
+    // Delegate to auth check — login.js calls initApp() after successful auth
+    if (typeof checkAuth === 'function') {
+        checkAuth();
+    } else {
+        initApp();
+    }
+});
+
+function initApp() {
+    const user = typeof getCurrentUser === 'function' ? getCurrentUser() : null;
+
+    // Show sidebar and main content, hide overlay
+    const sidebar = document.querySelector('.sidebar');
+    const main = document.querySelector('.main-content');
+    const overlay = document.getElementById('login-overlay');
+    if (sidebar) sidebar.classList.remove('auth-hidden');
+    if (main) main.classList.remove('auth-hidden');
+    if (overlay) overlay.classList.add('hidden');
+
+    // Show/hide nav items based on user role and modules
+    if (user) {
+        document.querySelectorAll('.nav-item[data-view]').forEach(item => {
+            const view = item.dataset.view;
+            if (view === 'admin') {
+                item.style.display = user.role === 'admin' ? '' : 'none';
+            } else if (user.role === 'admin') {
+                item.style.display = '';
+            } else {
+                item.style.display = user.modules && user.modules.includes(view) ? '' : 'none';
+            }
+        });
+
+        // Show user chip
+        const chip = document.getElementById('user-chip');
+        if (chip) {
+            chip.style.display = 'flex';
+            const nameStr = user.display_name || user.email || '';
+            const initials = nameStr.split(' ').map(w => w[0]).filter(Boolean).join('').substring(0, 2).toUpperCase();
+            const initialsEl = document.getElementById('user-initials');
+            const nameEl = document.getElementById('user-chip-name');
+            const roleEl = document.getElementById('user-chip-role');
+            if (initialsEl) initialsEl.textContent = initials;
+            if (nameEl) nameEl.textContent = user.display_name || user.email;
+            const roleLabels = { admin: 'Admin', supervisor: 'Supervisor', viewer: 'Visor' };
+            if (roleEl) roleEl.textContent = roleLabels[user.role] || user.role;
+        }
+    }
+
     checkHealth();
     cargarDashboard();
 
@@ -55,7 +116,6 @@ window.addEventListener('DOMContentLoaded', () => {
     document.querySelectorAll('th.sortable[data-col]').forEach(th => {
         th.addEventListener('click', () => sortarPedidos(th.dataset.col));
     });
-
 
     // Filtros de Cobros
     const searchCobros = document.getElementById('searchCobros');
@@ -96,7 +156,7 @@ window.addEventListener('DOMContentLoaded', () => {
             renderizarTablaRangos(filtrados);
         });
     }
-});
+}
 
 // === Health Check ===
 async function checkHealth() {
@@ -132,7 +192,7 @@ async function cargarPedidos() {
     empty.classList.add('hidden');
 
     try {
-        const res = await fetch('/api/pedidos');
+        const res = await apiFetch('/api/pedidos');
         if (!res.ok) throw new Error('Error del servidor');
         todosLosPedidos = await res.json();
         loader.classList.add('hidden');
@@ -148,7 +208,7 @@ async function cargarPedidos() {
 
 async function cargarPedidosSilencioso() {
     try {
-        const res = await fetch('/api/pedidos');
+        const res = await apiFetch('/api/pedidos');
         if (!res.ok) return;
         const nuevos = await res.json();
         const hashNuevos = nuevos.map(p => p.pedido_id + p.enviado_dynamics + (p.sync_error || '')).join('|');
@@ -451,7 +511,7 @@ async function reintentarPedido(event, pedidoId) {
     btn.innerHTML = '<div class="spinner-sm"></div>';
 
     try {
-        const res = await fetch(`/api/pedidos/${pedidoId}/retry`, { method: 'POST' });
+        const res = await apiFetch(`/api/pedidos/${pedidoId}/retry`, { method: 'POST' });
 
         let data = {};
         const contentType = res.headers.get("content-type");
@@ -585,7 +645,7 @@ async function verDetalle(pedidoId) {
     detalleLoading.classList.remove('hidden');
 
     try {
-        const res = await fetch(`/api/pedidos/${pedidoId}/lineas`);
+        const res = await apiFetch(`/api/pedidos/${pedidoId}/lineas`);
         if (!res.ok) throw new Error('Error del servidor');
         const lineas = await res.json();
         detalleLoading.classList.add('hidden');
@@ -650,7 +710,7 @@ async function reintentarDesdeDetalle() {
     btn.disabled = true;
     btn.textContent = 'Procesando...';
     try {
-        const res = await fetch(`/api/pedidos/${pedidoActual.pedido_id}/retry`, { method: 'POST' });
+        const res = await apiFetch(`/api/pedidos/${pedidoActual.pedido_id}/retry`, { method: 'POST' });
         let data = {};
         const ct = res.headers.get('content-type');
         if (ct && ct.includes('application/json')) data = await res.json();
@@ -675,7 +735,7 @@ async function reintentarTodosErrores() {
     let ok = 0, fail = 0;
     for (const p of conError) {
         try {
-            const res = await fetch(`/api/pedidos/${p.pedido_id}/retry`, { method: 'POST' });
+            const res = await apiFetch(`/api/pedidos/${p.pedido_id}/retry`, { method: 'POST' });
             if (res.ok) ok++;
             else fail++;
         } catch { fail++; }
@@ -710,6 +770,8 @@ function switchView(view) {
     document.getElementById('vista-cobros').classList.add('hidden');
     document.getElementById('vista-tracking').classList.add('hidden');
     document.getElementById('vista-clientes-extra').classList.add('hidden');
+    const vistaAdmin = document.getElementById('vista-admin');
+    if (vistaAdmin) vistaAdmin.classList.add('hidden');
 
     if (view === 'dashboard') {
         document.getElementById('vista-dashboard').classList.remove('hidden');
@@ -762,6 +824,12 @@ function switchView(view) {
         document.getElementById('page-title').textContent = 'Clientes Asignados a Vendedores';
         document.getElementById('contador').classList.add('hidden');
         cargarClientesExtra();
+    } else if (view === 'admin') {
+        const vistaAdm = document.getElementById('vista-admin');
+        if (vistaAdm) vistaAdm.classList.remove('hidden');
+        document.getElementById('page-title').textContent = 'Administración';
+        document.getElementById('contador').classList.add('hidden');
+        if (typeof cargarAdmin === 'function') cargarAdmin();
     }
 
     // Detener refresco de tracking si se sale de la vista
@@ -784,7 +852,7 @@ async function cargarLogsSync() {
     loading.classList.remove('hidden');
 
     try {
-        const res = await fetch('/api/sync/log');
+        const res = await apiFetch('/api/sync/log');
         if (!res.ok) throw new Error('Error al cargar logs');
         const logs = await res.json();
 
@@ -949,7 +1017,7 @@ async function cargarCamposDynamics() {
 
     // Cargar columnas SQL en paralelo
     try {
-        const res = await fetch('/api/sql/columnas');
+        const res = await apiFetch('/api/sql/columnas');
         const cols = await res.json();
         sqlLoading.classList.add('hidden');
         const body = document.getElementById('sql-columns-body');
@@ -968,7 +1036,7 @@ async function cargarCamposDynamics() {
 
     // Cargar campos de Dynamics
     try {
-        const res = await fetch('/api/dynamics/campos');
+        const res = await apiFetch('/api/dynamics/campos');
         if (!res.ok) throw new Error('Error del servidor');
         dynamicsData = await res.json();
         headerLoading.classList.add('hidden');
@@ -1021,7 +1089,7 @@ async function cargarRangos() {
     loading.classList.remove('hidden');
 
     try {
-        const res = await fetch('/api/rangos');
+        const res = await apiFetch('/api/rangos');
         if (!res.ok) throw new Error('Error al cargar rangos');
         const rangos = await res.json();
         todosLosRangos = rangos;
@@ -1102,7 +1170,7 @@ async function guardarRango(e) {
         const url = id ? `/api/rangos/${id}` : '/api/rangos';
         const method = id ? 'PUT' : 'POST';
 
-        const res = await fetch(url, {
+        const res = await apiFetch(url, {
             method,
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(data)
@@ -1121,7 +1189,7 @@ async function eliminarRango(id) {
     if (!confirm('¿Estás seguro de eliminar este rango?')) return;
 
     try {
-        const res = await fetch(`/api/rangos/${id}`, { method: 'DELETE' });
+        const res = await apiFetch(`/api/rangos/${id}`, { method: 'DELETE' });
         if (!res.ok) throw new Error('Error al eliminar');
         cargarRangos();
     } catch (err) {
@@ -1143,7 +1211,7 @@ async function cargarDashboard(filters = {}) {
         // Fetch filter options on first load
         if (!dashFilterOptions) {
             try {
-                const fRes = await fetch('/api/dashboard/filters');
+                const fRes = await apiFetch('/api/dashboard/filters');
                 if (fRes.ok) dashFilterOptions = await fRes.json();
             } catch (e) { console.warn('No se pudieron cargar filtros:', e); }
         }
@@ -1155,7 +1223,7 @@ async function cargarDashboard(filters = {}) {
         if (filters.hasta) params.set('hasta', filters.hasta);
 
         const url = '/api/dashboard' + (params.toString() ? '?' + params.toString() : '');
-        const res = await fetch(url);
+        const res = await apiFetch(url);
         if (!res.ok) throw new Error('Error del servidor');
         dashboardData = await res.json();
 
@@ -1736,7 +1804,7 @@ async function cargarCobros() {
     empty.classList.add('hidden');
 
     try {
-        const res = await fetch('/api/cobros');
+        const res = await apiFetch('/api/cobros');
         if (!res.ok) throw new Error('Error al cargar historial de cobros');
         todosLosCobros = await res.json();
 
@@ -1966,7 +2034,7 @@ async function cargarTracking(isAutoRefresh = false) {
         if (desdeEl?.value) params.set('fechaDesde', desdeEl.value);
         if (hastaEl?.value) params.set('fechaHasta', hastaEl.value);
 
-        const res = await fetch(`/api/tracking?${params.toString()}`);
+        const res = await apiFetch(`/api/tracking?${params.toString()}`);
         if (!res.ok) throw new Error('Error al cargar datos de tracking');
         todosLosTracking = await res.json();
 
@@ -2242,8 +2310,8 @@ async function abrirDetalleOV(pedidoId, ovNumber) {
 
     try {
         const [pedidoRes, lineasRes] = await Promise.all([
-            fetch(`/api/pedidos/${pedidoId}`),
-            fetch(`/api/pedidos/${pedidoId}/lineas`)
+            apiFetch(`/api/pedidos/${pedidoId}`),
+            apiFetch(`/api/pedidos/${pedidoId}/lineas`)
         ]);
         const pedido = await pedidoRes.json();
         const lineas = await lineasRes.json();
@@ -2331,9 +2399,9 @@ async function cargarClientesExtra() {
 
     try {
         const [asignaciones, vendedores, clientes] = await Promise.all([
-            fetch('/api/clientes-extra').then(r => r.json()),
-            fetch('/api/vendedores').then(r => r.json()),
-            fetch('/api/clientes').then(r => r.json())
+            apiFetch('/api/clientes-extra').then(r => r.json()),
+            apiFetch('/api/vendedores').then(r => r.json()),
+            apiFetch('/api/clientes').then(r => r.json())
         ]);
 
         todosLosClientesExtra      = asignaciones;
@@ -2592,7 +2660,7 @@ async function asignarClienteExtra() {
     if (btn) { btn.disabled = true; btn.textContent = 'Guardando...'; }
 
     try {
-        const res = await fetch('/api/clientes-extra', {
+        const res = await apiFetch('/api/clientes-extra', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ vendedor_nombre: vendedorNombre, empleado_responsable: empleadoResponsable, cliente_accountnum: accountnum, cliente_nombre: nombre })
@@ -2616,7 +2684,7 @@ async function eliminarClienteExtra(id, clienteNombre, vendedorNombre) {
     if (!confirm(`¿Quitar a "${clienteNombre}" del vendedor "${vendedorNombre}"?`)) return;
 
     try {
-        const res = await fetch(`/api/clientes-extra/${id}`, { method: 'DELETE' });
+        const res = await apiFetch(`/api/clientes-extra/${id}`, { method: 'DELETE' });
         if (!res.ok) { showToast('Error al eliminar', 'error'); return; }
         showToast('Asignación eliminada', 'success');
         todosLosClientesExtra = todosLosClientesExtra.filter(a => a.id !== id);

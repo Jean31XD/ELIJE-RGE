@@ -2567,3 +2567,88 @@ tbody tr.clickable-row {
 }
 
 .btn-quitar:hover { background: #fee2e2; border-color: var(--danger); }
+
+/* ============ AUTH / LOGIN ============ */
+.auth-hidden { display: none !important; }
+
+.login-overlay {
+    position: fixed; inset: 0; z-index: 9999;
+    background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+    display: flex; align-items: center; justify-content: center;
+}
+.login-overlay.hidden { display: none; }
+.login-card {
+    background: var(--surface); border-radius: 16px; padding: 48px 40px;
+    width: 100%; max-width: 420px; text-align: center;
+    box-shadow: 0 25px 50px rgba(0,0,0,0.4);
+}
+.login-logo { width: 120px; margin-bottom: 24px; }
+.login-title { font-size: 22px; font-weight: 700; color: var(--text); margin-bottom: 8px; }
+.login-subtitle { font-size: 14px; color: var(--text-secondary); margin-bottom: 32px; }
+.btn-ms-login {
+    display: inline-flex; align-items: center; gap: 12px;
+    background: #fff; color: #333; border: 1px solid #e2e8f0;
+    border-radius: 8px; padding: 12px 24px; font-size: 15px; font-weight: 500;
+    cursor: pointer; transition: all 0.2s; width: 100%; justify-content: center;
+}
+.btn-ms-login:hover { background: #f8fafc; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+.btn-ms-login:disabled { opacity: 0.6; cursor: not-allowed; }
+.login-error { color: var(--danger); font-size: 13px; margin-top: 16px; }
+.login-loading { display: flex; align-items: center; gap: 12px; justify-content: center; margin-top: 16px; color: var(--text-secondary); font-size: 14px; }
+
+/* ============ USER CHIP ============ */
+.user-chip {
+    display: flex; align-items: center; gap: 8px;
+    background: var(--bg); border-radius: 20px; padding: 4px 12px 4px 4px;
+    border: 1px solid var(--border);
+}
+.user-chip-avatar {
+    width: 28px; height: 28px; border-radius: 50%;
+    background: var(--primary); color: #fff; font-size: 11px; font-weight: 700;
+    display: flex; align-items: center; justify-content: center;
+}
+.user-chip-name { font-size: 13px; font-weight: 500; color: var(--text); }
+.user-chip-role {
+    font-size: 11px; color: var(--text-secondary);
+    background: var(--border); padding: 2px 6px; border-radius: 4px;
+}
+
+/* ============ ADMIN PANEL ============ */
+.admin-tabs {
+    display: flex; gap: 4px; padding: 0 32px 0; margin-bottom: 20px;
+    border-bottom: 1px solid var(--border);
+}
+.admin-tab {
+    background: none; border: none; padding: 10px 20px;
+    font-size: 14px; font-weight: 500; color: var(--text-secondary);
+    cursor: pointer; border-bottom: 2px solid transparent; margin-bottom: -1px;
+    transition: all 0.15s;
+}
+.admin-tab.active { color: var(--primary); border-bottom-color: var(--primary); }
+.admin-tab:hover { color: var(--text); }
+.admin-toolbar {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 0 32px 16px;
+}
+.admin-toolbar h3 { font-size: 16px; font-weight: 600; color: var(--text); margin: 0; }
+.role-badge {
+    display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 600;
+}
+.role-badge.admin { background: #fee2e2; color: #dc2626; }
+.role-badge.supervisor { background: #dbeafe; color: #2563eb; }
+.role-badge.viewer { background: #f1f5f9; color: #64748b; }
+.module-chip {
+    display: inline-block; background: #eff6ff; color: #2563eb;
+    border-radius: 4px; padding: 2px 7px; font-size: 11px; margin: 2px;
+}
+.vendor-chip {
+    display: inline-block; background: #f0fdf4; color: #16a34a;
+    border-radius: 4px; padding: 2px 7px; font-size: 11px; margin: 2px;
+}
+.check-label {
+    display: flex; align-items: center; gap: 8px;
+    font-size: 13px; color: var(--text); padding: 4px 0; cursor: pointer;
+}
+.check-label input[type="checkbox"] { width: 14px; height: 14px; cursor: pointer; flex-shrink: 0; }
+.modal-scrollable { max-height: 200px; overflow-y: auto; padding: 8px; border: 1px solid var(--border); border-radius: var(--radius); }
+.surface-hover { background: var(--bg); }

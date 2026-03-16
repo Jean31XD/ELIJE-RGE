@@ -36,6 +36,10 @@ const {
     processOrder,
     extractErrorMessage
 } = require('./syncOrders');
+const { ensureAuthSchema } = require('./db/schema');
+const authRoutes = require('./routes/authRoutes');
+const adminRoutes = require('./routes/adminRoutes');
+const { requireAuth, getVendorFilter } = require('./middleware/auth');
 
 const app = express();
 app.use(cors());
@@ -49,8 +53,14 @@ app.use((req, res, next) => {
     next();
 });
 
-// 2. Rutas de APIPrioritarias
-app.post('/api/pedidos/:id/retry', async (req, res) => {
+// 2. Auth routes (public - no requireAuth)
+app.use('/api/auth', authRoutes);
+
+// 3. Admin routes (protected internally with requireAuth + requireAdmin)
+app.use('/api/admin', adminRoutes);
+
+// 4. Rutas de APIPrioritarias
+app.post('/api/pedidos/:id/retry', requireAuth, async (req, res) => {
     const { id } = req.params;
     console.log(`[RETRY] Solicitud recibida para ID: ${id}`);
     try {
@@ -79,14 +89,15 @@ app.post('/api/pedidos/:id/retry', async (req, res) => {
 });
 
 // --- API DASHBOARD ---
-app.get('/api/dashboard', async (req, res) => {
+app.get('/api/dashboard', requireAuth, async (req, res) => {
     try {
         const filters = {};
         if (req.query.vendedor) filters.vendedor = req.query.vendedor;
         if (req.query.cliente) filters.cliente = req.query.cliente;
         if (req.query.desde) filters.desde = req.query.desde;
         if (req.query.hasta) filters.hasta = req.query.hasta;
-        const data = await getDashboardData(filters);
+        const vendorFilter = getVendorFilter(req.user);
+        const data = await getDashboardData(filters, vendorFilter);
         res.json(data);
     } catch (err) {
         console.error('Error en /api/dashboard:', err.message);
@@ -94,17 +105,36 @@ app.get('/api/dashboard', async (req, res) => {
     }
 });
 
-app.get('/api/dashboard/filters', async (req, res) => {
+app.get('/api/dashboard/filters', requireAuth, async (req, res) => {
     try {
-        const db = require('./dbConnection').getPool;
-        const pool = await db();
-        const [vendedores, clientes] = await Promise.all([
-            pool.request().query(`SELECT DISTINCT vendedor_nombre FROM [dbo].[pedidos] WHERE vendedor_nombre IS NOT NULL AND vendedor_nombre <> '' ORDER BY vendedor_nombre`),
-            pool.request().query(`SELECT DISTINCT cliente_nombre FROM [dbo].[pedidos] WHERE cliente_nombre IS NOT NULL AND cliente_nombre <> '' ORDER BY cliente_nombre`)
-        ]);
+        const vendorFilter = getVendorFilter(req.user);
+        const pool = await getPool();
+        let vendedoresQuery, clientesQuery;
+        if (vendorFilter !== null && Array.isArray(vendorFilter)) {
+            if (vendorFilter.length === 0) {
+                return res.json({ vendedores: [], clientes: [] });
+            }
+            // Build IN clause manually
+            const params = vendorFilter.map((v, i) => `@vf${i}`).join(',');
+            const vReq = pool.request();
+            const cReq = pool.request();
+            vendorFilter.forEach((v, i) => {
+                vReq.input(`vf${i}`, v);
+                cReq.input(`vf${i}`, v);
+            });
+            [vendedoresQuery, clientesQuery] = await Promise.all([
+                vReq.query(`SELECT DISTINCT vendedor_nombre FROM [dbo].[pedidos] WHERE vendedor_nombre IS NOT NULL AND vendedor_nombre <> '' AND vendedor_nombre IN (${params}) ORDER BY vendedor_nombre`),
+                cReq.query(`SELECT DISTINCT cliente_nombre FROM [dbo].[pedidos] WHERE cliente_nombre IS NOT NULL AND cliente_nombre <> '' AND vendedor_nombre IN (${params}) ORDER BY cliente_nombre`)
+            ]);
+        } else {
+            [vendedoresQuery, clientesQuery] = await Promise.all([
+                pool.request().query(`SELECT DISTINCT vendedor_nombre FROM [dbo].[pedidos] WHERE vendedor_nombre IS NOT NULL AND vendedor_nombre <> '' ORDER BY vendedor_nombre`),
+                pool.request().query(`SELECT DISTINCT cliente_nombre FROM [dbo].[pedidos] WHERE cliente_nombre IS NOT NULL AND cliente_nombre <> '' ORDER BY cliente_nombre`)
+            ]);
+        }
         res.json({
-            vendedores: vendedores.recordset.map(r => r.vendedor_nombre),
-            clientes: clientes.recordset.map(r => r.cliente_nombre)
+            vendedores: vendedoresQuery.recordset.map(r => r.vendedor_nombre),
+            clientes: clientesQuery.recordset.map(r => r.cliente_nombre)
         });
     } catch (err) {
         console.error('Error en /api/dashboard/filters:', err.message);
@@ -112,11 +142,11 @@ app.get('/api/dashboard/filters', async (req, res) => {
     }
 });
 
-// 3. Static Files (Despues de las rutas de API dinamicas)
+// 5. Static Files (Despues de las rutas de API dinamicas)
 app.use(express.static(path.join(__dirname, 'public')));
 
 // --- API RANGOS ---
-app.get('/api/rangos', async (req, res) => {
+app.get('/api/rangos', requireAuth, async (req, res) => {
     try {
         const rangos = await getRangos();
         res.json(rangos);
@@ -125,7 +155,7 @@ app.get('/api/rangos', async (req, res) => {
     }
 });
 
-app.post('/api/rangos', async (req, res) => {
+app.post('/api/rangos', requireAuth, async (req, res) => {
     try {
         await createRango(req.body);
         res.status(201).json({ ok: true });
@@ -134,7 +164,7 @@ app.post('/api/rangos', async (req, res) => {
     }
 });
 
-app.put('/api/rangos/:id', async (req, res) => {
+app.put('/api/rangos/:id', requireAuth, async (req, res) => {
     try {
         await updateRango(req.params.id, req.body);
         res.json({ ok: true });
@@ -143,7 +173,7 @@ app.put('/api/rangos/:id', async (req, res) => {
     }
 });
 
-app.delete('/api/rangos/:id', async (req, res) => {
+app.delete('/api/rangos/:id', requireAuth, async (req, res) => {
     try {
         await deleteRango(req.params.id);
         res.json({ ok: true });
@@ -152,9 +182,10 @@ app.delete('/api/rangos/:id', async (req, res) => {
     }
 });
 
-app.get('/api/pedidos', async (req, res) => {
+app.get('/api/pedidos', requireAuth, async (req, res) => {
     try {
-        const pedidos = await getAllOrders();
+        const vendorFilter = getVendorFilter(req.user);
+        const pedidos = await getAllOrders(vendorFilter);
         res.json(pedidos);
     } catch (err) {
         console.error('Error en /api/pedidos:', err.message);
@@ -162,7 +193,7 @@ app.get('/api/pedidos', async (req, res) => {
     }
 });
 
-app.get('/api/pedidos/:id', async (req, res) => {
+app.get('/api/pedidos/:id', requireAuth, async (req, res) => {
     try {
         const pedido = await getOrderById(parseInt(req.params.id));
         if (!pedido) return res.status(404).json({ error: 'Pedido no encontrado' });
@@ -173,7 +204,7 @@ app.get('/api/pedidos/:id', async (req, res) => {
     }
 });
 
-app.get('/api/pedidos/:id/lineas', async (req, res) => {
+app.get('/api/pedidos/:id/lineas', requireAuth, async (req, res) => {
     try {
         const lineas = await getOrderLines(parseInt(req.params.id));
         res.json(lineas);
@@ -183,9 +214,10 @@ app.get('/api/pedidos/:id/lineas', async (req, res) => {
     }
 });
 
-app.get('/api/cobros', async (req, res) => {
+app.get('/api/cobros', requireAuth, async (req, res) => {
     try {
-        const cobros = await getAllCobros();
+        const vendorFilter = getVendorFilter(req.user);
+        const cobros = await getAllCobros(vendorFilter);
         res.json(cobros);
     } catch (err) {
         console.error('Error en /api/cobros:', err.message);
@@ -193,14 +225,15 @@ app.get('/api/cobros', async (req, res) => {
     }
 });
 
-app.get('/api/tracking', async (req, res) => {
+app.get('/api/tracking', requireAuth, async (req, res) => {
     try {
         const filters = {};
         if (req.query.fechaDesde) filters.fechaDesde = req.query.fechaDesde;
         if (req.query.fechaHasta) filters.fechaHasta = req.query.fechaHasta;
         if (req.query.vendedor_id) filters.vendedor_id = req.query.vendedor_id;
         if (req.query.action) filters.action = req.query.action;
-        const tracking = await getTrackingLogs(filters);
+        const vendorFilter = getVendorFilter(req.user);
+        const tracking = await getTrackingLogs(filters, vendorFilter);
         res.json(tracking);
     } catch (err) {
         console.error('Error en /api/tracking:', err.message);
@@ -210,7 +243,7 @@ app.get('/api/tracking', async (req, res) => {
 
 // --- API DYNAMICS ---
 
-app.get('/api/dynamics/campos', async (req, res) => {
+app.get('/api/dynamics/campos', requireAuth, async (req, res) => {
     try {
         const token = await getAccessToken();
         const base = process.env.RESOURCE_URL.replace(/\/$/, '') + '/data/';
@@ -243,7 +276,7 @@ app.get('/api/dynamics/campos', async (req, res) => {
     }
 });
 
-app.get('/api/sql/columnas', async (req, res) => {
+app.get('/api/sql/columnas', requireAuth, async (req, res) => {
     try {
         const db = await getPool();
         const result = await db.request().query(`
@@ -261,15 +294,15 @@ app.get('/api/sql/columnas', async (req, res) => {
 
 // --- API SYNC ---
 
-app.get('/api/sync/status', (req, res) => {
+app.get('/api/sync/status', requireAuth, (req, res) => {
     res.json(getSyncStatus());
 });
 
-app.get('/api/sync/log', (req, res) => {
+app.get('/api/sync/log', requireAuth, (req, res) => {
     res.json(getSyncLog());
 });
 
-app.post('/api/sync/trigger', async (req, res) => {
+app.post('/api/sync/trigger', requireAuth, async (req, res) => {
     try {
         await pollCycle();
         res.json({ ok: true, log: getSyncLog().slice(-10) });
@@ -280,7 +313,7 @@ app.post('/api/sync/trigger', async (req, res) => {
 
 // --- API CLIENTES EXTRA POR VENDEDOR ---
 
-app.get('/api/vendedores', async (req, res) => {
+app.get('/api/vendedores', requireAuth, async (req, res) => {
     try {
         const vendedores = await getVendedores();
         res.json(vendedores);
@@ -289,7 +322,7 @@ app.get('/api/vendedores', async (req, res) => {
     }
 });
 
-app.get('/api/clientes-buscar', async (req, res) => {
+app.get('/api/clientes-buscar', requireAuth, async (req, res) => {
     try {
         const clientes = await buscarClientes(req.query.q || '');
         res.json(clientes);
@@ -298,7 +331,7 @@ app.get('/api/clientes-buscar', async (req, res) => {
     }
 });
 
-app.get('/api/clientes', async (req, res) => {
+app.get('/api/clientes', requireAuth, async (req, res) => {
     try {
         const clientes = await getAllClientes();
         res.json(clientes);
@@ -307,7 +340,7 @@ app.get('/api/clientes', async (req, res) => {
     }
 });
 
-app.get('/api/clientes-extra', async (req, res) => {
+app.get('/api/clientes-extra', requireAuth, async (req, res) => {
     try {
         const data = await getClientesExtra(req.query.empleado || null);
         res.json(data);
@@ -316,7 +349,7 @@ app.get('/api/clientes-extra', async (req, res) => {
     }
 });
 
-app.post('/api/clientes-extra', async (req, res) => {
+app.post('/api/clientes-extra', requireAuth, async (req, res) => {
     try {
         const { vendedor_nombre, empleado_responsable, cliente_accountnum, cliente_nombre } = req.body;
         if (!vendedor_nombre || !empleado_responsable || !cliente_accountnum || !cliente_nombre) {
@@ -332,7 +365,7 @@ app.post('/api/clientes-extra', async (req, res) => {
     }
 });
 
-app.delete('/api/clientes-extra/:id', async (req, res) => {
+app.delete('/api/clientes-extra/:id', requireAuth, async (req, res) => {
     try {
         await deleteClienteExtra(parseInt(req.params.id));
         res.json({ ok: true });
@@ -369,6 +402,13 @@ app.listen(PORT, async () => {
     console.log(`  DB: ${process.env.DB_SERVER} / ${process.env.DB_NAME}`);
     console.log(`  Dynamics: ${process.env.RESOURCE_URL}`);
     console.log('====================================================');
+
+    // Inicializar schema de auth
+    try {
+        await ensureAuthSchema();
+    } catch (err) {
+        console.error('  Error inicializando auth schema:', err.message);
+    }
 
     // Iniciar sync automatico
     try {
