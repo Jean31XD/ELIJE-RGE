@@ -407,13 +407,20 @@ async function listCatalogUsers() {
         SELECT
             vendedor_id,
             nombre_usuario,
-            contraseña_generada,
+            [contraseña_generada],
             CASE WHEN password_hash IS NOT NULL AND password_hash != '' THEN 1 ELSE 0 END AS has_password,
             google2fa_secret
         FROM [dbo].[usuarios_vendedores]
         ORDER BY vendedor_id
     `);
-    return result.recordset;
+    // normalize column name for JS (ñ may come back as-is)
+    return result.recordset.map(r => ({
+        vendedor_id: r.vendedor_id,
+        nombre_usuario: r.nombre_usuario,
+        contraseña_generada: r['contraseña_generada'] || r.contrase_a_generada || r.contrasena_generada || null,
+        has_password: r.has_password,
+        google2fa_secret: r.google2fa_secret
+    }));
 }
 
 async function resetCatalogPassword(nombre_usuario, nueva_password) {
@@ -423,7 +430,7 @@ async function resetCatalogPassword(nombre_usuario, nueva_password) {
         .input('pwd', sql.NVarChar(255), nueva_password)
         .query(`
             UPDATE [dbo].[usuarios_vendedores]
-            SET contraseña_generada = @pwd, password_hash = NULL
+            SET [contraseña_generada] = @pwd, password_hash = NULL
             WHERE nombre_usuario = @usr
         `);
     return result.rowsAffected[0];
@@ -433,7 +440,7 @@ async function syncCatalogVendors() {
     const db = await getPool();
     const result = await db.request().query(`
         INSERT INTO [dbo].[usuarios_vendedores] (
-            vendedor_id, nombre_usuario, contraseña_generada, google2fa_secret
+            vendedor_id, nombre_usuario, [contraseña_generada], google2fa_secret
         )
         SELECT
             VendedoresNuevos.[Vendedor] AS vendedor_id,
@@ -449,7 +456,7 @@ async function syncCatalogVendors() {
                     ELSE LTRIM(RTRIM(VendedoresNuevos.[Vendedor]))
                 END
             , ' ', '')) AS nombre_usuario,
-            'A*12345678' AS contraseña_generada,
+            'A*12345678' AS [contraseña_generada],
             NULL AS google2fa_secret
         FROM (
             SELECT DISTINCT [Vendedor]

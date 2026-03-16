@@ -369,11 +369,15 @@ async function cargarMapaAdmin() {
 
     try {
         const res = await apiFetch('/api/admin/vendor-map');
-        if (!res.ok) throw new Error('Error al cargar mapeos');
+        if (!res.ok) {
+            const e = await res.json().catch(() => ({}));
+            throw new Error(e.error || `Error ${res.status}`);
+        }
         adminVendorMap = await res.json();
         renderTablaMapa(adminVendorMap);
     } catch (err) {
         if (body) body.innerHTML = `<tr><td colspan="5" style="color:var(--danger);text-align:center;padding:16px;">${escapeHtml(err.message)}</td></tr>`;
+        showToastAdmin('Error al cargar mapeos: ' + err.message, 'error');
     } finally {
         if (loading) loading.style.display = 'none';
     }
@@ -498,11 +502,15 @@ async function cargarCatalogoAdmin() {
 
     try {
         const res = await apiFetch('/api/admin/catalog-users');
-        if (!res.ok) throw new Error('Error al cargar usuarios del catálogo');
+        if (!res.ok) {
+            const e = await res.json().catch(() => ({}));
+            throw new Error(e.error || `Error ${res.status}`);
+        }
         adminCatalogUsers = await res.json();
         renderTablaCatalogo();
     } catch (err) {
-        showToastAdmin('Error: ' + err.message, 'error');
+        showToastAdmin('Error al cargar catálogo: ' + err.message, 'error');
+        if (body) body.innerHTML = `<tr><td colspan="6" style="color:var(--danger);text-align:center;padding:16px;">${escapeHtml(err.message)}</td></tr>`;
     } finally {
         if (loading) loading.style.display = 'none';
     }

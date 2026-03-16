@@ -11,6 +11,27 @@ function apiFetch(url, options = {}) {
     });
 }
 
+// Mobile sidebar toggle
+function toggleSidebar() {
+    const sidebar = document.querySelector('.sidebar');
+    const isOpen = sidebar.classList.contains('open');
+    if (isOpen) { closeSidebar(); } else { openSidebar(); }
+}
+function openSidebar() {
+    const sidebar = document.querySelector('.sidebar');
+    const overlay = document.getElementById('sidebar-overlay');
+    if (sidebar) sidebar.classList.add('open');
+    if (overlay) overlay.classList.add('active');
+    document.body.style.overflow = 'hidden';
+}
+function closeSidebar() {
+    const sidebar = document.querySelector('.sidebar');
+    const overlay = document.getElementById('sidebar-overlay');
+    if (sidebar) sidebar.classList.remove('open');
+    if (overlay) overlay.classList.remove('active');
+    document.body.style.overflow = '';
+}
+
 let todosLosPedidos = [];
 let pedidoActual = null;
 let pedidosFiltrados = [];
@@ -129,6 +150,7 @@ function initApp() {
     document.querySelectorAll('.nav-item[data-view]').forEach(item => {
         item.addEventListener('click', (e) => {
             e.preventDefault();
+            closeSidebar();
             const view = item.dataset.view;
             document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
             item.classList.add('active');
