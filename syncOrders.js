@@ -351,7 +351,7 @@ async function repatchRecentOrders(token) {
     for (const row of result.recordset) {
         try {
             const checkRes = await axios.get(
-                `${baseUrl}SalesOrderHeadersV2?$filter=SalesOrderNumber eq '${row.dynamics_order_number}' and dataAreaId eq 'maco'&$select=SalesOrderNumber,OrderResponsiblePersonnelNumber,CustomersOrderReference,SalesOrderName`,
+                `${baseUrl}SalesOrderHeadersV2?$filter=SalesOrderNumber eq '${row.dynamics_order_number}' and dataAreaId eq 'maco'&$select=SalesOrderNumber,OrderResponsiblePersonnelNumber,CustomersOrderReference,SalesOrderName,CommissionSalesRepresentativeGroupId`,
                 { headers: { 'Authorization': `Bearer ${token}`, 'Accept': 'application/json' } }
             );
             const ov = checkRes.data.value[0];
@@ -378,7 +378,7 @@ async function repatchRecentOrders(token) {
 
             const taker = row.secretario_personnel_number || row.vendedor_personnel_number;
             if (taker) {
-                patchData.SalesOrderTakerPersonnelNumber = taker;
+                patchData.OrderTakerPersonnelNumber = taker;
             }
 
             await axios.patch(
