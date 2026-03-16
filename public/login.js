@@ -24,6 +24,9 @@ async function initMsal() {
             }
         };
 
+        if (typeof msal === 'undefined') {
+            throw new Error('La librería MSAL no cargó. Verifica tu conexión a internet.');
+        }
         msalInstance = new msal.PublicClientApplication(msalConfig);
         return msalInstance;
     } catch (err) {
@@ -42,7 +45,7 @@ async function iniciarLoginMicrosoft() {
     if (loadingEl) loadingEl.style.display = 'flex';
 
     try {
-        const msal = await initMsal();
+        const msalApp = await initMsal();
 
         const loginRequest = {
             scopes: ['openid', 'profile', 'email']
@@ -50,7 +53,7 @@ async function iniciarLoginMicrosoft() {
 
         let result;
         try {
-            result = await msal.loginPopup(loginRequest);
+            result = await msalApp.loginPopup(loginRequest);
         } catch (err) {
             if (err.errorCode === 'user_cancelled') {
                 if (loadingEl) loadingEl.style.display = 'none';
