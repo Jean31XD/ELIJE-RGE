@@ -17,9 +17,13 @@ const MODULE_LABELS = {
 
 let adminUsers = [];
 let adminGroups = [];
+let adminVendorMap = [];
+let adminCatalogUsers = [];
 let adminAvailableVendors = [];
 let editingUserId = null;
 let editingGroupId = null;
+let editingMapaNombre = null;
+let resetPwdUsername = null;
 
 function switchAdminTab(tab) {
     document.querySelectorAll('.admin-tab').forEach(btn => {
@@ -27,6 +31,10 @@ function switchAdminTab(tab) {
     });
     document.getElementById('admin-tab-usuarios').style.display = tab === 'usuarios' ? '' : 'none';
     document.getElementById('admin-tab-grupos').style.display = tab === 'grupos' ? '' : 'none';
+    document.getElementById('admin-tab-mapa').style.display = tab === 'mapa' ? '' : 'none';
+    document.getElementById('admin-tab-catalogo').style.display = tab === 'catalogo' ? '' : 'none';
+    if (tab === 'mapa' && adminVendorMap.length === 0) cargarMapaAdmin();
+    if (tab === 'catalogo' && adminCatalogUsers.length === 0) cargarCatalogoAdmin();
 }
 
 async function cargarAdmin() {
@@ -348,6 +356,261 @@ async function eliminarGrupo(id) {
         showToastAdmin('Grupo eliminado', 'success');
     } catch (err) {
         showToastAdmin('Error: ' + err.message, 'error');
+    }
+}
+
+// ============ VENDOR MAP (Mapeo Dynamics) ============
+
+async function cargarMapaAdmin() {
+    const loading = document.getElementById('admin-mapa-loading');
+    const body = document.getElementById('admin-mapa-body');
+    if (loading) loading.style.display = 'flex';
+    if (body) body.innerHTML = '';
+
+    try {
+        const res = await apiFetch('/api/admin/vendor-map');
+        if (!res.ok) throw new Error('Error al cargar mapeos');
+        adminVendorMap = await res.json();
+        renderTablaMapa(adminVendorMap);
+    } catch (err) {
+        if (body) body.innerHTML = `<tr><td colspan="5" style="color:var(--danger);text-align:center;padding:16px;">${escapeHtml(err.message)}</td></tr>`;
+    } finally {
+        if (loading) loading.style.display = 'none';
+    }
+}
+
+function renderTablaMapa(datos) {
+    const body = document.getElementById('admin-mapa-body');
+    if (!body) return;
+
+    if (!datos || datos.length === 0) {
+        body.innerHTML = '<tr><td colspan="5" style="text-align:center;color:var(--text-secondary);padding:24px;">No hay mapeos configurados</td></tr>';
+        return;
+    }
+
+    body.innerHTML = datos.map(m => `
+        <tr data-nombre="${escapeHtml(m.vendedor_nombre)}">
+            <td style="font-weight:500;">${escapeHtml(m.vendedor_nombre)}</td>
+            <td><code style="background:var(--surface-hover);padding:2px 6px;border-radius:4px;font-size:12px;">${escapeHtml(m.personnel_number || '-')}</code></td>
+            <td><code style="background:var(--surface-hover);padding:2px 6px;border-radius:4px;font-size:12px;">${escapeHtml(m.sales_group_id || '-')}</code></td>
+            <td><code style="background:var(--surface-hover);padding:2px 6px;border-radius:4px;font-size:12px;">${escapeHtml(m.secretario_personnel_number || '-')}</code></td>
+            <td class="text-center" style="white-space:nowrap;">
+                <button class="btn btn-ghost btn-sm" onclick="abrirModalMapa('${escapeHtml(m.vendedor_nombre)}')" style="margin-right:4px;">Editar</button>
+                <button class="btn btn-ghost btn-sm" onclick="eliminarMapa('${escapeHtml(m.vendedor_nombre)}')" style="color:var(--danger);">Eliminar</button>
+            </td>
+        </tr>
+    `).join('');
+}
+
+function filtrarTablaMapa() {
+    const q = document.getElementById('mapa-search')?.value.toLowerCase().trim() || '';
+    document.querySelectorAll('#admin-mapa-body tr[data-nombre]').forEach(tr => {
+        tr.style.display = tr.dataset.nombre.toLowerCase().includes(q) ? '' : 'none';
+    });
+}
+
+function abrirModalMapa(nombreOriginal) {
+    editingMapaNombre = nombreOriginal || null;
+    document.getElementById('modal-mapa-titulo').textContent = nombreOriginal ? 'Editar Mapeo' : 'Nuevo Mapeo';
+    document.getElementById('modal-mapa-original').value = nombreOriginal || '';
+
+    if (nombreOriginal) {
+        const entry = adminVendorMap.find(m => m.vendedor_nombre === nombreOriginal);
+        document.getElementById('modal-mapa-nombre').value = entry?.vendedor_nombre || '';
+        document.getElementById('modal-mapa-personnel').value = entry?.personnel_number || '';
+        document.getElementById('modal-mapa-salesgroup').value = entry?.sales_group_id || '';
+        document.getElementById('modal-mapa-secretario').value = entry?.secretario_personnel_number || '';
+    } else {
+        document.getElementById('modal-mapa-nombre').value = '';
+        document.getElementById('modal-mapa-personnel').value = '';
+        document.getElementById('modal-mapa-salesgroup').value = '';
+        document.getElementById('modal-mapa-secretario').value = '';
+    }
+
+    document.getElementById('modal-mapa').classList.remove('hidden');
+    document.getElementById('modal-mapa-nombre').focus();
+}
+
+function cerrarModalMapa() {
+    document.getElementById('modal-mapa').classList.add('hidden');
+    editingMapaNombre = null;
+}
+
+async function guardarMapa() {
+    const vendedor_nombre = document.getElementById('modal-mapa-nombre')?.value.trim();
+    const personnel_number = document.getElementById('modal-mapa-personnel')?.value.trim();
+    const sales_group_id = document.getElementById('modal-mapa-salesgroup')?.value.trim();
+    const secretario_personnel_number = document.getElementById('modal-mapa-secretario')?.value.trim() || null;
+    const vendedor_nombre_original = document.getElementById('modal-mapa-original')?.value;
+
+    if (!vendedor_nombre) { showToastAdmin('El nombre del vendedor es requerido', 'error'); return; }
+
+    const btn = document.getElementById('btn-guardar-mapa');
+    if (btn) { btn.disabled = true; btn.textContent = 'Guardando...'; }
+
+    try {
+        if (editingMapaNombre) {
+            await apiFetch('/api/admin/vendor-map', {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ vendedor_nombre_original, vendedor_nombre, personnel_number, sales_group_id, secretario_personnel_number })
+            });
+        } else {
+            await apiFetch('/api/admin/vendor-map', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ vendedor_nombre, personnel_number, sales_group_id, secretario_personnel_number })
+            });
+        }
+        cerrarModalMapa();
+        await cargarMapaAdmin();
+        showToastAdmin(editingMapaNombre ? 'Mapeo actualizado' : 'Mapeo creado', 'success');
+    } catch (err) {
+        showToastAdmin('Error al guardar: ' + err.message, 'error');
+    } finally {
+        if (btn) { btn.disabled = false; btn.textContent = 'Guardar'; }
+    }
+}
+
+async function eliminarMapa(vendedor_nombre) {
+    if (!confirm(`¿Eliminar el mapeo de "${vendedor_nombre}"?`)) return;
+    try {
+        const res = await apiFetch('/api/admin/vendor-map', {
+            method: 'DELETE',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ vendedor_nombre })
+        });
+        if (!res.ok) throw new Error((await res.json()).error || 'Error');
+        await cargarMapaAdmin();
+        showToastAdmin('Mapeo eliminado', 'success');
+    } catch (err) {
+        showToastAdmin('Error: ' + err.message, 'error');
+    }
+}
+
+// ============ CATALOG USERS ============
+
+async function cargarCatalogoAdmin() {
+    const loading = document.getElementById('admin-catalogo-loading');
+    const body = document.getElementById('admin-catalogo-body');
+    if (loading) loading.style.display = 'flex';
+    if (body) body.innerHTML = '';
+
+    try {
+        const res = await apiFetch('/api/admin/catalog-users');
+        if (!res.ok) throw new Error('Error al cargar usuarios del catálogo');
+        adminCatalogUsers = await res.json();
+        renderTablaCatalogo();
+    } catch (err) {
+        showToastAdmin('Error: ' + err.message, 'error');
+    } finally {
+        if (loading) loading.style.display = 'none';
+    }
+}
+
+function renderTablaCatalogo() {
+    const body = document.getElementById('admin-catalogo-body');
+    if (!body) return;
+
+    const q = document.getElementById('catalogo-search')?.value.toLowerCase().trim() || '';
+    const filtered = adminCatalogUsers.filter(u =>
+        u.vendedor_id.toLowerCase().includes(q) || u.nombre_usuario.toLowerCase().includes(q)
+    );
+
+    const count = document.getElementById('catalogo-count');
+    if (count) count.textContent = `${filtered.length} de ${adminCatalogUsers.length} usuarios`;
+
+    if (filtered.length === 0) {
+        body.innerHTML = `<tr><td colspan="6" style="text-align:center;color:var(--text-secondary);padding:32px;">Sin resultados</td></tr>`;
+        return;
+    }
+
+    body.innerHTML = filtered.map(u => `
+        <tr data-username="${escapeHtml(u.nombre_usuario)}">
+            <td style="font-size:13px;">${escapeHtml(u.vendedor_id)}</td>
+            <td><strong>${escapeHtml(u.nombre_usuario)}</strong></td>
+            <td>
+                <span style="font-family:monospace;font-size:13px;background:var(--bg);padding:2px 6px;border-radius:4px;border:1px solid var(--border);">
+                    ${u.contraseña_generada ? escapeHtml(u.contraseña_generada) : '<em style="color:var(--text-secondary)">—</em>'}
+                </span>
+            </td>
+            <td>
+                ${u.has_password
+                    ? '<span class="role-badge" style="background:#e6f4ea;color:#1a7f37;">Configurado</span>'
+                    : '<span class="role-badge" style="background:#fff3cd;color:#856404;">Temporal</span>'}
+            </td>
+            <td>
+                ${u.google2fa_secret
+                    ? '<span class="role-badge" style="background:#e8f0fe;color:#1a73e8;">Activo</span>'
+                    : '<span style="color:var(--text-secondary);font-size:12px;">—</span>'}
+            </td>
+            <td class="text-center">
+                <button class="btn btn-sm btn-warning" onclick="abrirModalResetPwd('${escapeHtml(u.nombre_usuario)}')">
+                    Restablecer contraseña
+                </button>
+            </td>
+        </tr>
+    `).join('');
+}
+
+function filtrarTablaCatalogo() {
+    renderTablaCatalogo();
+}
+
+async function sincronizarVendedoresCatalogo() {
+    const btn = document.getElementById('btn-sync-catalogo');
+    if (btn) { btn.disabled = true; btn.textContent = 'Sincronizando...'; }
+    try {
+        const res = await apiFetch('/api/admin/catalog-users/sync', { method: 'POST' });
+        if (!res.ok) throw new Error((await res.json()).error || 'Error');
+        const data = await res.json();
+        showToastAdmin(`Sincronización completa. ${data.inserted} usuario(s) nuevo(s) agregado(s).`, 'success');
+        await cargarCatalogoAdmin();
+    } catch (err) {
+        showToastAdmin('Error al sincronizar: ' + err.message, 'error');
+    } finally {
+        if (btn) { btn.disabled = false; btn.textContent = '↻ Sincronizar desde Dynamics'; }
+    }
+}
+
+function abrirModalResetPwd(username) {
+    resetPwdUsername = username;
+    document.getElementById('reset-pwd-username').textContent = username;
+    document.getElementById('reset-pwd-value').value = 'A*12345678';
+    document.getElementById('modal-reset-pwd').classList.remove('hidden');
+    document.getElementById('reset-pwd-value').focus();
+    document.getElementById('reset-pwd-value').select();
+}
+
+function cerrarModalResetPwd() {
+    document.getElementById('modal-reset-pwd').classList.add('hidden');
+    resetPwdUsername = null;
+}
+
+async function confirmarResetPwd() {
+    const password = document.getElementById('reset-pwd-value')?.value.trim();
+    if (!password || password.length < 6) {
+        showToastAdmin('La contraseña debe tener al menos 6 caracteres', 'error');
+        return;
+    }
+
+    const btn = document.getElementById('btn-confirmar-reset-pwd');
+    if (btn) { btn.disabled = true; btn.textContent = 'Guardando...'; }
+
+    try {
+        const res = await apiFetch(`/api/admin/catalog-users/${encodeURIComponent(resetPwdUsername)}/reset-password`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ password })
+        });
+        if (!res.ok) throw new Error((await res.json()).error || 'Error');
+        cerrarModalResetPwd();
+        await cargarCatalogoAdmin();
+        showToastAdmin(`Contraseña restablecida para ${resetPwdUsername}`, 'success');
+    } catch (err) {
+        showToastAdmin('Error: ' + err.message, 'error');
+    } finally {
+        if (btn) { btn.disabled = false; btn.textContent = 'Restablecer'; }
     }
 }
 

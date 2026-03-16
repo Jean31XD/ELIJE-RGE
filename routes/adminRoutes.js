@@ -16,7 +16,14 @@ const {
     createVendorGroup,
     updateVendorGroup,
     deleteVendorGroup,
-    getAvailableVendors
+    getAvailableVendors,
+    listVendorMap,
+    createVendorMap,
+    updateVendorMap,
+    deleteVendorMap,
+    listCatalogUsers,
+    resetCatalogPassword,
+    syncCatalogVendors
 } = require('../db/authDb');
 
 // Apply auth middleware to all routes
@@ -134,6 +141,69 @@ router.get('/available-vendors', async (req, res) => {
     } catch (err) {
         res.status(500).json({ error: err.message });
     }
+});
+
+// GET /api/admin/vendor-map
+router.get('/vendor-map', async (req, res) => {
+    try { res.json(await listVendorMap()); }
+    catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// POST /api/admin/vendor-map
+router.post('/vendor-map', async (req, res) => {
+    try {
+        const { vendedor_nombre, personnel_number, sales_group_id, secretario_personnel_number } = req.body;
+        if (!vendedor_nombre) return res.status(400).json({ error: 'vendedor_nombre requerido' });
+        await createVendorMap(vendedor_nombre, personnel_number, sales_group_id, secretario_personnel_number);
+        res.status(201).json({ ok: true });
+    } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// PUT /api/admin/vendor-map
+router.put('/vendor-map', async (req, res) => {
+    try {
+        const { vendedor_nombre_original, vendedor_nombre, personnel_number, sales_group_id, secretario_personnel_number } = req.body;
+        if (!vendedor_nombre_original) return res.status(400).json({ error: 'vendedor_nombre_original requerido' });
+        await updateVendorMap(vendedor_nombre_original, vendedor_nombre, personnel_number, sales_group_id, secretario_personnel_number);
+        res.json({ ok: true });
+    } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// DELETE /api/admin/vendor-map
+router.delete('/vendor-map', async (req, res) => {
+    try {
+        const { vendedor_nombre } = req.body;
+        if (!vendedor_nombre) return res.status(400).json({ error: 'vendedor_nombre requerido' });
+        await deleteVendorMap(vendedor_nombre);
+        res.json({ ok: true });
+    } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// ============ CATALOG USERS ============
+
+// GET /api/admin/catalog-users
+router.get('/catalog-users', async (req, res) => {
+    try { res.json(await listCatalogUsers()); }
+    catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// PUT /api/admin/catalog-users/:username/reset-password
+router.put('/catalog-users/:username/reset-password', async (req, res) => {
+    try {
+        const { password } = req.body;
+        if (!password || password.length < 6) return res.status(400).json({ error: 'Contraseña mínimo 6 caracteres' });
+        const rows = await resetCatalogPassword(req.params.username, password);
+        if (rows === 0) return res.status(404).json({ error: 'Usuario no encontrado' });
+        res.json({ ok: true });
+    } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// POST /api/admin/catalog-users/sync
+router.post('/catalog-users/sync', async (req, res) => {
+    try {
+        const inserted = await syncCatalogVendors();
+        res.json({ ok: true, inserted });
+    } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
 module.exports = router;

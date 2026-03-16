@@ -348,6 +348,122 @@ async function getUserDetail(id) {
     return user;
 }
 
+// ============ VENDOR MAP (vendedor_dynamics_map) ============
+
+async function listVendorMap() {
+    const db = await getPool();
+    const result = await db.request().query(`
+        SELECT vendedor_nombre, personnel_number, sales_group_id, secretario_personnel_number
+        FROM [dbo].[vendedor_dynamics_map]
+        ORDER BY vendedor_nombre
+    `);
+    return result.recordset;
+}
+
+async function createVendorMap(vendedor_nombre, personnel_number, sales_group_id, secretario_personnel_number) {
+    const db = await getPool();
+    await db.request()
+        .input('vn', sql.NVarChar(200), vendedor_nombre)
+        .input('pn', sql.NVarChar(50), personnel_number || '')
+        .input('sg', sql.NVarChar(50), sales_group_id || '')
+        .input('sec', sql.NVarChar(50), secretario_personnel_number || null)
+        .query(`
+            INSERT INTO [dbo].[vendedor_dynamics_map]
+                (vendedor_nombre, personnel_number, sales_group_id, secretario_personnel_number)
+            VALUES (@vn, @pn, @sg, @sec)
+        `);
+}
+
+async function updateVendorMap(vendedor_nombre_original, vendedor_nombre, personnel_number, sales_group_id, secretario_personnel_number) {
+    const db = await getPool();
+    await db.request()
+        .input('orig', sql.NVarChar(200), vendedor_nombre_original)
+        .input('vn', sql.NVarChar(200), vendedor_nombre)
+        .input('pn', sql.NVarChar(50), personnel_number || '')
+        .input('sg', sql.NVarChar(50), sales_group_id || '')
+        .input('sec', sql.NVarChar(50), secretario_personnel_number || null)
+        .query(`
+            UPDATE [dbo].[vendedor_dynamics_map]
+            SET vendedor_nombre = @vn,
+                personnel_number = @pn,
+                sales_group_id = @sg,
+                secretario_personnel_number = @sec
+            WHERE vendedor_nombre = @orig
+        `);
+}
+
+async function deleteVendorMap(vendedor_nombre) {
+    const db = await getPool();
+    await db.request()
+        .input('vn', sql.NVarChar(200), vendedor_nombre)
+        .query(`DELETE FROM [dbo].[vendedor_dynamics_map] WHERE vendedor_nombre = @vn`);
+}
+
+// ============ CATALOG USERS (usuarios_vendedores) ============
+
+async function listCatalogUsers() {
+    const db = await getPool();
+    const result = await db.request().query(`
+        SELECT
+            vendedor_id,
+            nombre_usuario,
+            contraseña_generada,
+            CASE WHEN password_hash IS NOT NULL AND password_hash != '' THEN 1 ELSE 0 END AS has_password,
+            google2fa_secret
+        FROM [dbo].[usuarios_vendedores]
+        ORDER BY vendedor_id
+    `);
+    return result.recordset;
+}
+
+async function resetCatalogPassword(nombre_usuario, nueva_password) {
+    const db = await getPool();
+    const result = await db.request()
+        .input('usr', sql.NVarChar(100), nombre_usuario)
+        .input('pwd', sql.NVarChar(255), nueva_password)
+        .query(`
+            UPDATE [dbo].[usuarios_vendedores]
+            SET contraseña_generada = @pwd, password_hash = NULL
+            WHERE nombre_usuario = @usr
+        `);
+    return result.rowsAffected[0];
+}
+
+async function syncCatalogVendors() {
+    const db = await getPool();
+    const result = await db.request().query(`
+        INSERT INTO [dbo].[usuarios_vendedores] (
+            vendedor_id, nombre_usuario, contraseña_generada, google2fa_secret
+        )
+        SELECT
+            VendedoresNuevos.[Vendedor] AS vendedor_id,
+            LOWER(REPLACE(
+                CASE
+                    WHEN CHARINDEX(' ', LTRIM(RTRIM(VendedoresNuevos.[Vendedor])),
+                        CHARINDEX(' ', LTRIM(RTRIM(VendedoresNuevos.[Vendedor]))) + 1) > 0
+                    THEN LEFT(
+                        LTRIM(RTRIM(VendedoresNuevos.[Vendedor])),
+                        CHARINDEX(' ', LTRIM(RTRIM(VendedoresNuevos.[Vendedor])),
+                            CHARINDEX(' ', LTRIM(RTRIM(VendedoresNuevos.[Vendedor]))) + 1) - 1
+                    )
+                    ELSE LTRIM(RTRIM(VendedoresNuevos.[Vendedor]))
+                END
+            , ' ', '')) AS nombre_usuario,
+            'A*12345678' AS contraseña_generada,
+            NULL AS google2fa_secret
+        FROM (
+            SELECT DISTINCT [Vendedor]
+            FROM [dbo].[info_venderores]
+            WHERE [Vendedor] IS NOT NULL AND LTRIM(RTRIM([Vendedor])) != ''
+        ) AS VendedoresNuevos
+        WHERE NOT EXISTS (
+            SELECT 1 FROM [dbo].[usuarios_vendedores] uv
+            WHERE uv.vendedor_id = VendedoresNuevos.[Vendedor]
+        )
+    `);
+    return result.rowsAffected[0];
+}
+
 module.exports = {
     ALL_MODULES,
     findUserByOid,
@@ -366,5 +482,12 @@ module.exports = {
     updateVendorGroup,
     deleteVendorGroup,
     getAvailableVendors,
-    getUserDetail
+    getUserDetail,
+    listVendorMap,
+    createVendorMap,
+    updateVendorMap,
+    deleteVendorMap,
+    listCatalogUsers,
+    resetCatalogPassword,
+    syncCatalogVendors
 };
