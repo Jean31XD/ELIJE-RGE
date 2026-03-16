@@ -22,6 +22,10 @@ const TENANT_ID = process.env.TENANT_ID;
 
 // GET /api/auth/config - Public: returns MSAL config for frontend
 router.get('/config', (req, res) => {
+    if (!process.env.MS_LOGIN_CLIENT_ID || !TENANT_ID) {
+        console.error('[AUTH] Missing MS_LOGIN_CLIENT_ID or TENANT_ID in environment variables');
+        return res.status(500).json({ error: 'Configuración de autenticación incompleta en el servidor' });
+    }
     res.json({
         clientId: process.env.MS_LOGIN_CLIENT_ID,
         tenantId: TENANT_ID

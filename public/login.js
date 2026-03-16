@@ -10,7 +10,15 @@ async function initMsal() {
     if (msalInstance) return msalInstance;
     try {
         const res = await fetch('/api/auth/config');
+        if (!res.ok) {
+            const errData = await res.json().catch(() => ({}));
+            throw new Error(errData.error || 'Error obteniendo configuración de MSAL');
+        }
         const config = await res.json();
+
+        if (!config.clientId || !config.tenantId) {
+            throw new Error('Configuración de autenticación inválida recibida del servidor.');
+        }
 
         const msalConfig = {
             auth: {
