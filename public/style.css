@@ -88,17 +88,20 @@ body {
 }
 
 .sidebar-overlay {
-    display: none;
     position: fixed;
     inset: 0;
     background: rgba(15, 23, 42, 0.5);
     z-index: 150;
     backdrop-filter: blur(2px);
     opacity: 0;
-    transition: opacity 0.3s ease;
+    visibility: hidden;
+    pointer-events: none;
+    transition: opacity 0.3s ease, visibility 0.3s ease;
 }
 .sidebar-overlay.active {
     opacity: 1;
+    visibility: visible;
+    pointer-events: all;
 }
 
 .sidebar-brand {
@@ -798,45 +801,20 @@ tfoot td {
 
 /* Tablet landscape + large tablet: 1024px */
 @media (max-width: 1024px) {
-    .dashboard-kpis {
-        grid-template-columns: repeat(2, 1fr);
-    }
-    .filters-bar {
-        padding: 16px 24px;
-    }
-    .table-card {
-        margin: 0 24px 24px;
-    }
-    .topbar {
-        padding: 0 24px;
-    }
-    .dashboard-welcome,
-    .dashboard-filters,
-    .dashboard-sync-bar {
-        padding-left: 24px;
-        padding-right: 24px;
-    }
-    .dashboard-kpis {
-        padding: 16px 24px;
-    }
-    .detail-header {
-        margin: 0 24px 16px;
-    }
+    .filters-bar { padding: 16px 24px; }
+    .table-card { margin: 0 24px 24px; }
+    .topbar { padding: 0 24px; }
+    .detail-header { margin: 0 24px 16px; }
     .tracking-map-wrapper,
     .tracking-table-card,
     .tracking-pagination {
         margin-left: 24px;
         margin-right: 24px;
     }
-    .ped-kpis {
-        padding: 12px 24px;
-    }
-    .admin-tabs {
-        padding: 0 24px 0;
-    }
-    .admin-toolbar {
-        padding: 0 24px 16px;
-    }
+    .ped-kpis { padding: 12px 24px; }
+    .admin-tabs { padding: 0 24px; }
+    .admin-toolbar { padding: 0 24px 16px; }
+    .pagination-bar { margin: 0 24px 20px; }
 }
 
 /* Tablet: 768px */
@@ -853,10 +831,6 @@ tfoot td {
     .sidebar.open {
         transform: translateX(0);
         box-shadow: var(--shadow-lg);
-    }
-
-    .sidebar-overlay {
-        display: block;
     }
 
     .main-content {
@@ -1189,6 +1163,117 @@ tfoot td {
     .login-title {
         font-size: 19px;
     }
+}
+
+/* =============================================
+   DASHBOARD RESPONSIVE — all breakpoints
+   ============================================= */
+@media (max-width: 1200px) {
+    .dashboard-charts-row {
+        grid-template-columns: 1fr;
+        padding: 0 24px 16px;
+    }
+    .dashboard-charts-row-equal {
+        grid-template-columns: 1fr 1fr;
+    }
+    .dashboard-rankings-row {
+        padding: 0 24px 16px;
+    }
+    .dashboard-sync-bar {
+        padding: 0 24px 16px;
+    }
+    .dashboard-kpis {
+        grid-template-columns: repeat(2, 1fr);
+        padding: 12px 24px;
+    }
+    .dashboard-welcome {
+        padding: 20px 24px 8px;
+    }
+    .dashboard-filters {
+        padding: 0 24px 4px;
+    }
+}
+
+@media (max-width: 900px) {
+    .dashboard-charts-row-equal {
+        grid-template-columns: 1fr;
+    }
+    .dashboard-rankings-row {
+        grid-template-columns: 1fr;
+    }
+    .sync-stats-row {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+
+@media (max-width: 768px) {
+    .dashboard-welcome {
+        padding: 16px 16px 6px;
+    }
+    .dashboard-welcome h2 {
+        font-size: 18px;
+    }
+    .dashboard-filters {
+        padding: 0 16px 4px;
+    }
+    .dash-filter-bar {
+        flex-direction: column;
+        padding: 12px 14px;
+        gap: 10px;
+    }
+    .dash-filter-icon { display: none; }
+    .dash-filter-group {
+        max-width: none;
+        width: 100%;
+    }
+    .dashboard-kpis {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 10px;
+        padding: 10px 16px;
+    }
+    .kpi-card { padding: 16px; gap: 12px; }
+    .kpi-value { font-size: 20px; }
+    .kpi-icon { width: 42px; height: 42px; }
+    .dashboard-sync-bar { padding: 0 16px 14px; }
+    .sync-stats-row { grid-template-columns: repeat(2, 1fr); }
+    .dashboard-charts-row {
+        grid-template-columns: 1fr;
+        padding: 0 16px 14px;
+        gap: 12px;
+    }
+    .dashboard-charts-row-equal {
+        grid-template-columns: 1fr;
+        padding: 0 16px 14px;
+        gap: 12px;
+    }
+    .dashboard-chart-card canvas { height: 200px !important; }
+    .dashboard-rankings-row {
+        grid-template-columns: 1fr;
+        padding: 0 16px 14px;
+        gap: 12px;
+    }
+    .dashboard-recent { padding: 0 16px 20px; }
+}
+
+@media (max-width: 480px) {
+    .dashboard-kpis {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 8px;
+        padding: 8px 12px;
+    }
+    .kpi-card { padding: 12px; gap: 10px; }
+    .kpi-value { font-size: 17px; }
+    .kpi-icon { width: 36px; height: 36px; border-radius: 8px; }
+    .kpi-label { font-size: 10px; }
+    .sync-stats-row { grid-template-columns: repeat(2, 1fr); gap: 8px; }
+    .sync-stat-value { font-size: 15px; }
+    .dashboard-charts-row,
+    .dashboard-charts-row-equal { padding: 0 12px 12px; }
+    .dashboard-chart-card { padding: 16px; }
+    .dashboard-chart-card canvas { height: 170px !important; }
+    .dashboard-rankings-row { padding: 0 12px 12px; }
+    .dashboard-ranking-card { padding: 16px; }
+    .sync-progress-card { padding: 14px 16px; }
 }
 
 /* === Modals Refined === */
@@ -2200,18 +2285,6 @@ tfoot td {
 .dashboard-recent-link:hover {
     color: #1d4ed8;
 }
-
-/* Dashboard Responsive */
-@media (max-width: 1200px) {
-    .dashboard-kpis {
-        grid-template-columns: repeat(2, 1fr);
-    }
-
-    .sync-stats-row {
-        grid-template-columns: repeat(2, 1fr);
-    }
-}
-
 
 /* =====================================================
    TRACKING MODULE — Split-view redesign
