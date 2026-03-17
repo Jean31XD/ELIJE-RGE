@@ -3307,3 +3307,317 @@ tbody tr.clickable-row {
     scrollbar-color: var(--border) transparent;
 }
 .surface-hover { background: var(--bg); }
+
+/* ================================================================
+   RESPONSIVE MASTER — estas reglas van AL FINAL y siempre ganan
+   Cubre: sidebar, topbar, dashboard, tablas, filtros, modales,
+          admin, tracking, pedidos, cobros, login
+   ================================================================ */
+
+/* ---- TABLET LANDSCAPE (≤ 1200px) ---- */
+@media (max-width: 1200px) {
+    .dashboard-kpis {
+        grid-template-columns: repeat(2, 1fr) !important;
+        padding: 16px 24px !important;
+        gap: 14px !important;
+    }
+    .dashboard-charts-row,
+    .dashboard-charts-row-equal {
+        grid-template-columns: 1fr !important;
+        padding: 0 24px 16px !important;
+        gap: 14px !important;
+    }
+    .dashboard-rankings-row {
+        grid-template-columns: 1fr 1fr !important;
+        padding: 0 24px 16px !important;
+        gap: 14px !important;
+    }
+    .dashboard-sync-bar { padding: 0 24px 16px !important; }
+    .dashboard-welcome { padding: 20px 24px 8px !important; }
+    .dashboard-filters { padding: 0 24px 4px !important; }
+    .dashboard-recent { padding: 0 24px 24px !important; }
+    .sync-stats-row { grid-template-columns: repeat(4, 1fr) !important; }
+    .table-card { margin: 0 24px 24px !important; }
+    .filters-bar { padding: 16px 24px !important; }
+    .topbar { padding: 0 24px !important; }
+    .admin-tabs { padding: 0 24px !important; }
+    .admin-toolbar { padding: 0 24px 16px !important; }
+    .pagination-bar { margin: 0 24px 20px !important; }
+    .ped-kpis { padding: 12px 24px !important; }
+    .detail-header { margin: 0 24px 16px !important; }
+    .tracking-map-wrapper,
+    .tracking-table-card,
+    .tracking-pagination { margin-left: 24px !important; margin-right: 24px !important; }
+    .tracking-infobar { padding: 0 24px 12px !important; }
+    .ce-kpi-bar { padding: 20px 24px 8px !important; }
+    .ce-section-pad { padding: 12px 24px 4px !important; }
+}
+
+/* ---- TABLET (≤ 900px) ---- */
+@media (max-width: 900px) {
+    .dashboard-rankings-row {
+        grid-template-columns: 1fr !important;
+    }
+    .dashboard-charts-row-equal {
+        grid-template-columns: 1fr !important;
+    }
+    .sync-stats-row {
+        grid-template-columns: repeat(2, 1fr) !important;
+        gap: 10px !important;
+    }
+    .trk-workspace {
+        flex-direction: column !important;
+        height: auto !important;
+        margin: 0 24px 24px !important;
+    }
+    .trk-map-panel { height: 350px !important; flex: none !important; }
+    .trk-side-panel {
+        flex: none !important;
+        border-left: none !important;
+        border-top: 1px solid var(--border) !important;
+        max-height: 380px !important;
+    }
+    .trk-kpis { grid-template-columns: repeat(4, 1fr) !important; }
+}
+
+/* ---- MÓVIL GRANDE / TABLET PEQUEÑA (≤ 768px) ---- */
+@media (max-width: 768px) {
+
+    /* --- Sidebar slide-in --- */
+    .btn-hamburger { display: flex !important; }
+    .sidebar {
+        transform: translateX(-100%) !important;
+        box-shadow: none !important;
+        z-index: 300 !important;
+    }
+    .sidebar.open {
+        transform: translateX(0) !important;
+        box-shadow: 0 0 40px rgba(0,0,0,0.4) !important;
+    }
+    .main-content { margin-left: 0 !important; }
+
+    /* --- Topbar --- */
+    .topbar {
+        padding: 0 14px !important;
+        height: 54px !important;
+        gap: 8px !important;
+    }
+    .topbar-left { gap: 8px !important; }
+    .topbar-left h1 { font-size: 16px !important; font-weight: 600 !important; }
+    .user-chip-name { display: none !important; }
+    .topbar-right { gap: 6px !important; }
+
+    /* --- Filtros --- */
+    .filters-bar {
+        padding: 10px 14px !important;
+        gap: 8px !important;
+        flex-direction: column !important;
+    }
+    .filters-bar .search-box { width: 100% !important; min-width: 0 !important; }
+    .filters-bar .filter-group { width: 100% !important; }
+    .filters-bar .filter-group input,
+    .filters-bar .filter-group select { width: 100% !important; }
+
+    /* --- Tablas --- */
+    .table-card { margin: 0 12px 16px !important; }
+    .pagination-bar {
+        margin: 0 12px 16px !important;
+        padding: 10px 14px !important;
+        flex-direction: column !important;
+        align-items: flex-start !important;
+        gap: 10px !important;
+    }
+
+    /* --- Detail header --- */
+    .detail-header {
+        margin: 0 12px 12px !important;
+        padding: 16px !important;
+        grid-template-columns: repeat(2, 1fr) !important;
+        gap: 12px !important;
+    }
+    .detail-nav { padding: 10px 14px 12px !important; }
+
+    /* --- Dashboard --- */
+    .dashboard-welcome { padding: 16px 14px 8px !important; }
+    .dashboard-welcome h2 { font-size: 18px !important; }
+    .dashboard-filters { padding: 0 14px 8px !important; }
+    .dash-filter-bar {
+        flex-direction: column !important;
+        padding: 12px !important;
+        gap: 10px !important;
+    }
+    .dash-filter-icon { display: none !important; }
+    .dash-filter-group { max-width: 100% !important; width: 100% !important; }
+    .dashboard-kpis {
+        grid-template-columns: repeat(2, 1fr) !important;
+        gap: 10px !important;
+        padding: 8px 14px !important;
+    }
+    .kpi-card { padding: 14px !important; gap: 12px !important; }
+    .kpi-value { font-size: 19px !important; }
+    .kpi-icon { width: 42px !important; height: 42px !important; }
+    .dashboard-sync-bar { padding: 0 14px 12px !important; }
+    .sync-progress-card { padding: 14px 16px !important; }
+    .sync-stats-row { grid-template-columns: repeat(2, 1fr) !important; gap: 8px !important; }
+    .sync-stat-value { font-size: 16px !important; }
+    .dashboard-charts-row,
+    .dashboard-charts-row-equal {
+        grid-template-columns: 1fr !important;
+        padding: 0 14px 12px !important;
+        gap: 12px !important;
+    }
+    .dashboard-chart-card { padding: 16px !important; }
+    .dashboard-chart-card canvas { height: 200px !important; }
+    .dashboard-rankings-row {
+        grid-template-columns: 1fr !important;
+        padding: 0 14px 12px !important;
+        gap: 12px !important;
+    }
+    .dashboard-ranking-card { padding: 16px !important; }
+    .dashboard-recent { padding: 0 14px 20px !important; }
+
+    /* --- Admin --- */
+    .admin-tabs {
+        padding: 0 14px !important;
+        overflow-x: auto !important;
+        flex-wrap: nowrap !important;
+        scrollbar-width: none !important;
+        -ms-overflow-style: none !important;
+        gap: 0 !important;
+    }
+    .admin-tabs::-webkit-scrollbar { display: none !important; }
+    .admin-tab { white-space: nowrap !important; padding: 10px 14px !important; font-size: 13px !important; }
+    .admin-toolbar {
+        padding: 0 14px 12px !important;
+        flex-wrap: wrap !important;
+        gap: 8px !important;
+    }
+    .admin-toolbar h3 { font-size: 15px !important; }
+
+    /* --- Modales --- */
+    .modal-content {
+        width: 96% !important;
+        max-height: 90vh !important;
+        overflow-y: auto !important;
+        margin: 0 auto !important;
+    }
+    .modal-body { padding: 18px 16px !important; }
+    .modal-header { padding: 16px 18px !important; }
+    .modal-footer { padding: 0 16px 18px !important; }
+    .form-grid { grid-template-columns: 1fr !important; gap: 14px !important; }
+
+    /* --- Pedidos --- */
+    .ped-kpis { padding: 10px 14px !important; gap: 8px !important; flex-wrap: nowrap !important; overflow-x: auto !important; }
+    .ped-kpi { min-width: 80px !important; padding: 10px 12px !important; flex-shrink: 0 !important; }
+    .ped-kpi-val { font-size: 18px !important; }
+    .ped-kpi-lbl { font-size: 10px !important; }
+
+    /* --- Tracking --- */
+    .trk-workspace {
+        flex-direction: column !important;
+        height: auto !important;
+        margin: 0 12px 16px !important;
+    }
+    .trk-map-panel { height: 280px !important; flex: none !important; }
+    .trk-side-panel {
+        flex: none !important;
+        border-left: none !important;
+        border-top: 1px solid var(--border) !important;
+        max-height: 320px !important;
+    }
+    .trk-kpis { grid-template-columns: repeat(2, 1fr) !important; gap: 8px !important; }
+    .tracking-infobar { padding: 0 12px 10px !important; }
+    .tracking-map-wrapper { margin: 0 12px 14px !important; }
+    .tracking-map-wrapper #map { height: 280px !important; }
+    .tracking-table-card { margin: 0 12px !important; }
+    .tracking-pagination { margin: 12px 12px 0 !important; }
+
+    /* --- Clientes extra --- */
+    .ce-kpi-bar { padding: 14px 14px 8px !important; flex-wrap: wrap !important; }
+    .ce-kpi { min-width: 140px !important; }
+    .ce-section-pad { padding: 10px 14px 4px !important; }
+    .ce-form-body { flex-direction: column !important; }
+    .ce-field, .ce-field--wide { min-width: 0 !important; width: 100% !important; }
+}
+
+/* ---- MÓVIL (≤ 480px) ---- */
+@media (max-width: 480px) {
+
+    /* --- Topbar --- */
+    .topbar { height: 50px !important; padding: 0 12px !important; }
+    .topbar-left h1 { font-size: 14px !important; }
+    .user-chip-role { display: none !important; }
+    .badge { display: none !important; }
+
+    /* --- Dashboard --- */
+    .dashboard-kpis {
+        grid-template-columns: repeat(2, 1fr) !important;
+        gap: 8px !important;
+        padding: 8px 12px !important;
+    }
+    .kpi-card { padding: 12px !important; gap: 8px !important; }
+    .kpi-value { font-size: 16px !important; }
+    .kpi-label { font-size: 10px !important; }
+    .kpi-icon { width: 36px !important; height: 36px !important; border-radius: 8px !important; }
+    .dashboard-chart-card canvas { height: 170px !important; }
+    .sync-stat { padding: 10px 6px !important; }
+    .sync-stat-value { font-size: 14px !important; }
+
+    /* --- Tablas --- */
+    .table-card { margin: 0 8px 12px !important; border-radius: var(--radius) !important; }
+    .pagination-bar { margin: 0 8px 12px !important; }
+    .pagination-controls { flex-wrap: wrap !important; gap: 8px !important; }
+
+    /* --- Filtros --- */
+    .filters-bar { padding: 8px 12px !important; }
+
+    /* --- Detail --- */
+    .detail-header {
+        margin: 0 8px 12px !important;
+        grid-template-columns: 1fr !important;
+    }
+
+    /* --- Admin --- */
+    .admin-tabs { padding: 0 10px !important; }
+    .admin-toolbar { padding: 0 10px 10px !important; }
+    .table-card { margin: 0 8px 12px !important; }
+
+    /* --- Modales bottom-sheet --- */
+    .modal { align-items: flex-end !important; }
+    .modal-content {
+        width: 100% !important;
+        border-radius: var(--radius-lg) var(--radius-lg) 0 0 !important;
+        max-height: 88vh !important;
+        margin: 0 !important;
+    }
+
+    /* --- Pedidos --- */
+    .ped-kpis { padding: 8px !important; }
+    .ped-kpi { min-width: 72px !important; padding: 8px !important; }
+    .ped-kpi-val { font-size: 16px !important; }
+
+    /* --- Clientes --- */
+    .ce-kpi-bar { padding: 10px !important; gap: 10px !important; }
+    .ce-kpi { min-width: 120px !important; padding: 12px !important; }
+
+    /* --- Tracking --- */
+    .trk-map-panel { height: 240px !important; }
+    .trk-kpis { grid-template-columns: repeat(2, 1fr) !important; }
+    .trk-kpi-val { font-size: 17px !important; }
+
+    /* --- Login --- */
+    .login-card { padding: 28px 20px !important; border-radius: var(--radius-lg) !important; }
+    .login-logo { width: 80px !important; }
+    .login-title { font-size: 18px !important; }
+    .login-subtitle { font-size: 13px !important; margin-bottom: 24px !important; }
+}
+
+/* ---- MÓVIL PEQUEÑO (≤ 360px) ---- */
+@media (max-width: 360px) {
+    .topbar-left h1 { font-size: 13px !important; }
+    .dashboard-kpis { grid-template-columns: 1fr 1fr !important; gap: 6px !important; padding: 6px !important; }
+    .kpi-card { padding: 10px !important; }
+    .kpi-value { font-size: 14px !important; }
+    .ped-kpi { min-width: 65px !important; }
+    .ped-kpi-val { font-size: 14px !important; }
+}
