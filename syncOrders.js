@@ -248,12 +248,32 @@ async function processOrder(token, objPedido) {
     const lines = await getOrderLines(objPedido.pedido_id);
     log(`  Insertando ${lines.length} linea(s)...`);
 
+    // Consultar líneas ya existentes en D365 para evitar duplicados en retry
+    let existingItemIds = new Set();
+    try {
+        const existingRes = await axios.get(
+            `${getBaseUrl()}SalesOrderLines?$filter=SalesOrderNumber eq '${salesOrderNumber}' and dataAreaId eq 'maco'&$select=ItemNumber`,
+            { headers: { 'Authorization': `Bearer ${token}`, 'Accept': 'application/json' } }
+        );
+        existingItemIds = new Set(existingRes.data.value.map(l => l.ItemNumber));
+        if (existingItemIds.size > 0) {
+            log(`  [RETRY] Líneas ya existentes en D365: ${[...existingItemIds].join(', ')}`);
+        }
+    } catch (err) {
+        log(`  [WARN] No se pudieron verificar líneas existentes: ${err.message}`);
+    }
+
     // Caché local de settings por artículo para este objPedido
     const itemSettingsCache = new Map();
 
     for (let i = 0; i < lines.length; i++) {
         const line = lines[i];
         if (line.cantidad <= 0) continue;
+
+        if (existingItemIds.has(line.item_id)) {
+            log(`    Skipping ${line.item_id} (ya existe en D365)`);
+            continue;
+        }
 
         if (!itemSettingsCache.has(line.item_id)) {
             const defaults = await getItemDefaultSettings(token, line.item_id);
