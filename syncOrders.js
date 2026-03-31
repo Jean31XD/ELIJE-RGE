@@ -226,23 +226,43 @@ async function processOrder(token, objPedido) {
     if (salesOrderNumber) {
         log(`  Header ya existe -> ${salesOrderNumber} (procediendo con lineas si es necesario)`);
     } else {
-        log(`  Iniciando creación de header en Dynamics...`);
-        if (objPedido.vendedor_personnel_number) {
-            log(`  Responsable: ${objPedido.vendedor_nombre} -> ${objPedido.vendedor_personnel_number}`);
-            if (objPedido.secretario_personnel_number) {
-                log(`  Secretario de ventas: ${objPedido.secretario_personnel_number}`);
-            } else {
-                log(`  ADVERTENCIA: No hay secretario asignado para ${objPedido.vendedor_nombre}. Se usará el mismo vendedor como OrderTaker.`);
+        // Verificar en D365 si ya existe una OV con este número de pedido (previene duplicados
+        // si el servidor falló entre createSalesOrderHeader y saveOrderNumber)
+        if (objPedido.pedido_numero) {
+            try {
+                const checkRes = await axios.get(
+                    `${getBaseUrl()}SalesOrderHeadersV2?$filter=dataAreaId eq 'maco' and CustomerRequisitionNumber eq '${objPedido.pedido_numero}'&$select=SalesOrderNumber`,
+                    { headers: { 'Authorization': `Bearer ${token}`, 'Accept': 'application/json' } }
+                );
+                if (checkRes.data.value && checkRes.data.value.length > 0) {
+                    salesOrderNumber = checkRes.data.value[0].SalesOrderNumber;
+                    log(`  [ANTI-DUPLICADO] OV ya existe en D365 -> ${salesOrderNumber}. Recuperando en DB.`);
+                    await saveOrderNumber(objPedido.pedido_id, salesOrderNumber);
+                }
+            } catch (checkErr) {
+                log(`  [WARN] No se pudo verificar existencia en D365: ${checkErr.message}`);
             }
-        } else {
-            log(`  ADVERTENCIA: No se encontró mapeo de PersonnelNumber para el vendedor: ${objPedido.vendedor_nombre}`);
         }
 
-        salesOrderNumber = await createSalesOrderHeader(token, objPedido);
-        log(`  Header creado con éxito -> ${salesOrderNumber}`);
+        if (!salesOrderNumber) {
+            log(`  Iniciando creación de header en Dynamics...`);
+            if (objPedido.vendedor_personnel_number) {
+                log(`  Responsable: ${objPedido.vendedor_nombre} -> ${objPedido.vendedor_personnel_number}`);
+                if (objPedido.secretario_personnel_number) {
+                    log(`  Secretario de ventas: ${objPedido.secretario_personnel_number}`);
+                } else {
+                    log(`  ADVERTENCIA: No hay secretario asignado para ${objPedido.vendedor_nombre}. Se usará el mismo vendedor como OrderTaker.`);
+                }
+            } else {
+                log(`  ADVERTENCIA: No se encontró mapeo de PersonnelNumber para el vendedor: ${objPedido.vendedor_nombre}`);
+            }
 
-        // Guardar inmediatamente para evitar duplicados si las lineas fallan en el siguiente paso
-        await saveOrderNumber(objPedido.pedido_id, salesOrderNumber);
+            salesOrderNumber = await createSalesOrderHeader(token, objPedido);
+            log(`  Header creado con éxito -> ${salesOrderNumber}`);
+
+            // Guardar inmediatamente para evitar duplicados si las lineas fallan en el siguiente paso
+            await saveOrderNumber(objPedido.pedido_id, salesOrderNumber);
+        }
     }
 
     const lines = await getOrderLines(objPedido.pedido_id);
