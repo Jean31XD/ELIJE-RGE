@@ -172,9 +172,7 @@ async function getPendingOrders() {
                 AND p2.total = p.total
                 AND UPPER(LTRIM(RTRIM(ISNULL(p2.cliente_direccion,'')))) = UPPER(LTRIM(RTRIM(ISNULL(p.cliente_direccion,''))))
                 AND ABS(DATEDIFF(SECOND, p2.fecha_pedido, p.fecha_pedido)) <= 60
-                AND ISNULL(p2.enviado_dynamics, 0) = 0
                 AND (p2.estado IS NULL OR p2.estado <> 'CANCELADO')
-                AND (p2.dynamics_order_number IS NULL OR p2.dynamics_order_number = '')
           )
         ORDER BY p.fecha_pedido ASC
     `);
