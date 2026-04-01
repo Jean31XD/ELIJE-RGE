@@ -434,7 +434,7 @@ async function resetCatalogPassword(nombre_usuario, nueva_password) {
         .input('hash', sql.NVarChar(255), hash)
         .query(`
             UPDATE [dbo].[usuarios_vendedores]
-            SET password_hash = @hash, [contraseña_generada] = NULL
+            SET password_hash = @hash, [contraseña_generada] = 'TEMP'
             WHERE nombre_usuario = @usr
         `);
     return result.rowsAffected[0];
@@ -463,7 +463,7 @@ async function syncCatalogVendors() {
                     ELSE LTRIM(RTRIM(VendedoresNuevos.[Vendedor]))
                 END
             , ' ', '')) AS nombre_usuario,
-            NULL AS [contraseña_generada],
+            'TEMP' AS [contraseña_generada],
             @defaultHash AS password_hash,
             NULL AS google2fa_secret
         FROM (
