@@ -538,8 +538,8 @@ function renderTablaCatalogo() {
             <td style="font-size:13px;">${escapeHtml(u.vendedor_id)}</td>
             <td><strong>${escapeHtml(u.nombre_usuario)}</strong></td>
             <td>
-                <span style="font-family:monospace;font-size:13px;background:var(--bg);padding:2px 6px;border-radius:4px;border:1px solid var(--border);">
-                    ${u.contraseña_generada ? escapeHtml(u.contraseña_generada) : '<em style="color:var(--text-secondary)">—</em>'}
+                <span style="font-family:monospace;font-size:13px;background:var(--bg);padding:2px 6px;border-radius:4px;border:1px solid var(--border);color:var(--text-secondary);">
+                    ••••••••
                 </span>
             </td>
             <td>
@@ -597,8 +597,8 @@ function cerrarModalResetPwd() {
 
 async function confirmarResetPwd() {
     const password = document.getElementById('reset-pwd-value')?.value.trim();
-    if (!password || password.length < 6) {
-        showToastAdmin('La contraseña debe tener al menos 6 caracteres', 'error');
+    if (!password || password.length < 8) {
+        showToastAdmin('La contraseña debe tener al menos 8 caracteres', 'error');
         return;
     }
 

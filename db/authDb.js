@@ -3,6 +3,10 @@
  */
 const { getPool } = require('../dbConnection');
 const sql = require('mssql');
+const bcrypt = require('bcrypt');
+
+const DEFAULT_PASSWORD = 'A*12345678';
+const BCRYPT_ROUNDS = 10;
 
 const ALL_MODULES = ['dashboard', 'pedidos', 'cobros', 'sync', 'logs', 'rangos', 'tracking', 'clientes-extra'];
 
@@ -417,7 +421,6 @@ async function listCatalogUsers() {
     return result.recordset.map(r => ({
         vendedor_id: r.vendedor_id,
         nombre_usuario: r.nombre_usuario,
-        contraseña_generada: r['contraseña_generada'] || r.contrase_a_generada || r.contrasena_generada || null,
         has_password: r.has_password,
         google2fa_secret: r.google2fa_secret
     }));
@@ -425,12 +428,13 @@ async function listCatalogUsers() {
 
 async function resetCatalogPassword(nombre_usuario, nueva_password) {
     const db = await getPool();
+    const hash = await bcrypt.hash(nueva_password, BCRYPT_ROUNDS);
     const result = await db.request()
         .input('usr', sql.NVarChar(100), nombre_usuario)
-        .input('pwd', sql.NVarChar(255), nueva_password)
+        .input('hash', sql.NVarChar(255), hash)
         .query(`
             UPDATE [dbo].[usuarios_vendedores]
-            SET [contraseña_generada] = @pwd, password_hash = NULL
+            SET password_hash = @hash, [contraseña_generada] = NULL
             WHERE nombre_usuario = @usr
         `);
     return result.rowsAffected[0];
@@ -438,9 +442,12 @@ async function resetCatalogPassword(nombre_usuario, nueva_password) {
 
 async function syncCatalogVendors() {
     const db = await getPool();
-    const result = await db.request().query(`
+    const defaultHash = await bcrypt.hash(DEFAULT_PASSWORD, BCRYPT_ROUNDS);
+    const result = await db.request()
+        .input('defaultHash', sql.NVarChar(255), defaultHash)
+        .query(`
         INSERT INTO [dbo].[usuarios_vendedores] (
-            vendedor_id, nombre_usuario, [contraseña_generada], google2fa_secret
+            vendedor_id, nombre_usuario, [contraseña_generada], password_hash, google2fa_secret
         )
         SELECT
             VendedoresNuevos.[Vendedor] AS vendedor_id,
@@ -456,7 +463,8 @@ async function syncCatalogVendors() {
                     ELSE LTRIM(RTRIM(VendedoresNuevos.[Vendedor]))
                 END
             , ' ', '')) AS nombre_usuario,
-            'A*12345678' AS [contraseña_generada],
+            NULL AS [contraseña_generada],
+            @defaultHash AS password_hash,
             NULL AS google2fa_secret
         FROM (
             SELECT DISTINCT [Vendedor]

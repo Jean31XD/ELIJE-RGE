@@ -191,7 +191,7 @@ router.get('/catalog-users', async (req, res) => {
 router.put('/catalog-users/:username/reset-password', async (req, res) => {
     try {
         const { password } = req.body;
-        if (!password || password.length < 6) return res.status(400).json({ error: 'Contraseña mínimo 6 caracteres' });
+        if (!password || password.length < 8) return res.status(400).json({ error: 'Contraseña mínimo 8 caracteres' });
         const rows = await resetCatalogPassword(req.params.username, password);
         if (rows === 0) return res.status(404).json({ error: 'Usuario no encontrado' });
         res.json({ ok: true });
