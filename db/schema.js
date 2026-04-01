@@ -97,6 +97,22 @@ async function ensureAuthSchema() {
         END
     `);
 
+    // app_audit_log
+    await db.request().query(`
+        IF NOT EXISTS (SELECT 1 FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME = 'app_audit_log')
+        BEGIN
+            CREATE TABLE [dbo].[app_audit_log] (
+                id INT IDENTITY(1,1) PRIMARY KEY,
+                admin_id INT NOT NULL,
+                admin_email NVARCHAR(255) NOT NULL,
+                accion NVARCHAR(100) NOT NULL,
+                objetivo NVARCHAR(255) NULL,
+                detalle NVARCHAR(MAX) NULL,
+                created_at DATETIME NOT NULL DEFAULT CAST(GETDATE() AT TIME ZONE 'UTC' AT TIME ZONE 'SA Western Standard Time' AS DATETIME)
+            );
+        END
+    `);
+
     console.log('  Auth schema OK');
 }
 

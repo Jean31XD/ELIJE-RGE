@@ -472,6 +472,24 @@ async function syncCatalogVendors() {
     return result.rowsAffected[0];
 }
 
+async function writeAuditLog(adminId, adminEmail, accion, objetivo, detalle) {
+    try {
+        const db = await getPool();
+        await db.request()
+            .input('adminId', sql.Int, adminId)
+            .input('adminEmail', sql.NVarChar(255), adminEmail)
+            .input('accion', sql.NVarChar(100), accion)
+            .input('objetivo', sql.NVarChar(255), objetivo || null)
+            .input('detalle', sql.NVarChar(sql.MAX), detalle ? JSON.stringify(detalle) : null)
+            .query(`
+                INSERT INTO [dbo].[app_audit_log] (admin_id, admin_email, accion, objetivo, detalle)
+                VALUES (@adminId, @adminEmail, @accion, @objetivo, @detalle)
+            `);
+    } catch (err) {
+        console.error('[AUDIT] Error escribiendo log:', err.message);
+    }
+}
+
 module.exports = {
     ALL_MODULES,
     findUserByOid,
@@ -497,5 +515,6 @@ module.exports = {
     deleteVendorMap,
     listCatalogUsers,
     resetCatalogPassword,
-    syncCatalogVendors
+    syncCatalogVendors,
+    writeAuditLog
 };

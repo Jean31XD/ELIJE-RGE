@@ -23,8 +23,12 @@ const {
     deleteVendorMap,
     listCatalogUsers,
     resetCatalogPassword,
-    syncCatalogVendors
+    syncCatalogVendors,
+    writeAuditLog
 } = require('../db/authDb');
+
+const audit = (req, accion, objetivo, detalle) =>
+    writeAuditLog(req.user.sub, req.user.email, accion, objetivo, detalle);
 
 // Apply auth middleware to all routes
 router.use(requireAuth, requireAdmin);
@@ -54,6 +58,7 @@ router.get('/users/:id', async (req, res) => {
 router.put('/users/:id', async (req, res) => {
     try {
         await updateUser(parseInt(req.params.id), req.body);
+        await audit(req, 'UPDATE_USER', `user:${req.params.id}`, req.body);
         res.json({ ok: true });
     } catch (err) {
         res.status(500).json({ error: err.message });
@@ -64,6 +69,7 @@ router.put('/users/:id', async (req, res) => {
 router.put('/users/:id/modules', async (req, res) => {
     try {
         await setUserModules(parseInt(req.params.id), req.body.modules || []);
+        await audit(req, 'SET_MODULES', `user:${req.params.id}`, { modules: req.body.modules });
         res.json({ ok: true });
     } catch (err) {
         res.status(500).json({ error: err.message });
@@ -74,6 +80,7 @@ router.put('/users/:id/modules', async (req, res) => {
 router.put('/users/:id/vendors', async (req, res) => {
     try {
         await setUserVendors(parseInt(req.params.id), req.body.vendors || []);
+        await audit(req, 'SET_VENDORS', `user:${req.params.id}`, { vendors: req.body.vendors });
         res.json({ ok: true });
     } catch (err) {
         res.status(500).json({ error: err.message });
@@ -84,6 +91,7 @@ router.put('/users/:id/vendors', async (req, res) => {
 router.put('/users/:id/vendor-groups', async (req, res) => {
     try {
         await setUserVendorGroups(parseInt(req.params.id), req.body.groupIds || []);
+        await audit(req, 'SET_VENDOR_GROUPS', `user:${req.params.id}`, { groupIds: req.body.groupIds });
         res.json({ ok: true });
     } catch (err) {
         res.status(500).json({ error: err.message });
@@ -106,6 +114,7 @@ router.post('/vendor-groups', async (req, res) => {
         const { name, description, vendors } = req.body;
         if (!name) return res.status(400).json({ error: 'Nombre requerido' });
         const id = await createVendorGroup(name, description, vendors || []);
+        await audit(req, 'CREATE_VENDOR_GROUP', `group:${id}`, { name, description });
         res.status(201).json({ ok: true, id });
     } catch (err) {
         res.status(500).json({ error: err.message });
@@ -117,6 +126,7 @@ router.put('/vendor-groups/:id', async (req, res) => {
     try {
         const { name, description, vendors } = req.body;
         await updateVendorGroup(parseInt(req.params.id), name, description, vendors || []);
+        await audit(req, 'UPDATE_VENDOR_GROUP', `group:${req.params.id}`, { name, description });
         res.json({ ok: true });
     } catch (err) {
         res.status(500).json({ error: err.message });
@@ -127,6 +137,7 @@ router.put('/vendor-groups/:id', async (req, res) => {
 router.delete('/vendor-groups/:id', async (req, res) => {
     try {
         await deleteVendorGroup(parseInt(req.params.id));
+        await audit(req, 'DELETE_VENDOR_GROUP', `group:${req.params.id}`, null);
         res.json({ ok: true });
     } catch (err) {
         res.status(500).json({ error: err.message });
@@ -155,6 +166,7 @@ router.post('/vendor-map', async (req, res) => {
         const { vendedor_nombre, personnel_number, sales_group_id, secretario_personnel_number } = req.body;
         if (!vendedor_nombre) return res.status(400).json({ error: 'vendedor_nombre requerido' });
         await createVendorMap(vendedor_nombre, personnel_number, sales_group_id, secretario_personnel_number);
+        await audit(req, 'CREATE_VENDOR_MAP', vendedor_nombre, { personnel_number, sales_group_id });
         res.status(201).json({ ok: true });
     } catch (err) { res.status(500).json({ error: err.message }); }
 });
@@ -165,6 +177,7 @@ router.put('/vendor-map', async (req, res) => {
         const { vendedor_nombre_original, vendedor_nombre, personnel_number, sales_group_id, secretario_personnel_number } = req.body;
         if (!vendedor_nombre_original) return res.status(400).json({ error: 'vendedor_nombre_original requerido' });
         await updateVendorMap(vendedor_nombre_original, vendedor_nombre, personnel_number, sales_group_id, secretario_personnel_number);
+        await audit(req, 'UPDATE_VENDOR_MAP', vendedor_nombre_original, { vendedor_nombre, personnel_number, sales_group_id });
         res.json({ ok: true });
     } catch (err) { res.status(500).json({ error: err.message }); }
 });
@@ -175,6 +188,7 @@ router.delete('/vendor-map', async (req, res) => {
         const { vendedor_nombre } = req.body;
         if (!vendedor_nombre) return res.status(400).json({ error: 'vendedor_nombre requerido' });
         await deleteVendorMap(vendedor_nombre);
+        await audit(req, 'DELETE_VENDOR_MAP', vendedor_nombre, null);
         res.json({ ok: true });
     } catch (err) { res.status(500).json({ error: err.message }); }
 });
@@ -194,6 +208,7 @@ router.put('/catalog-users/:username/reset-password', async (req, res) => {
         if (!password || password.length < 8) return res.status(400).json({ error: 'Contraseña mínimo 8 caracteres' });
         const rows = await resetCatalogPassword(req.params.username, password);
         if (rows === 0) return res.status(404).json({ error: 'Usuario no encontrado' });
+        await audit(req, 'RESET_PASSWORD', req.params.username, null);
         res.json({ ok: true });
     } catch (err) { res.status(500).json({ error: err.message }); }
 });
@@ -202,6 +217,7 @@ router.put('/catalog-users/:username/reset-password', async (req, res) => {
 router.post('/catalog-users/sync', async (req, res) => {
     try {
         const inserted = await syncCatalogVendors();
+        await audit(req, 'SYNC_CATALOG_VENDORS', null, { inserted });
         res.json({ ok: true, inserted });
     } catch (err) { res.status(500).json({ error: err.message }); }
 });

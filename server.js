@@ -42,7 +42,7 @@ const {
 const { ensureAuthSchema } = require('./db/schema');
 const authRoutes = require('./routes/authRoutes');
 const adminRoutes = require('./routes/adminRoutes');
-const { requireAuth, getVendorFilter } = require('./middleware/auth');
+const { requireAuth, requireAdmin, getVendorFilter } = require('./middleware/auth');
 
 const app = express();
 
@@ -314,7 +314,7 @@ app.get('/api/dynamics/campos', requireAuth, async (req, res) => {
     }
 });
 
-app.get('/api/sql/columnas', requireAuth, async (req, res) => {
+app.get('/api/sql/columnas', requireAuth, requireAdmin, async (req, res) => {
     try {
         const db = await getPool();
         const result = await db.request().query(`
@@ -414,7 +414,7 @@ app.delete('/api/clientes-extra/:id', requireAuth, async (req, res) => {
 
 // --- HEALTH ---
 
-app.get('/api/health', async (req, res) => {
+app.get('/api/health', requireAuth, async (req, res) => {
     try {
         await getPool();
         res.json({ status: 'ok', db: 'connected', sync: getSyncStatus() });
