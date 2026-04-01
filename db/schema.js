@@ -18,7 +18,7 @@ async function ensureAuthSchema() {
                 ms_oid NVARCHAR(100) NOT NULL,
                 role NVARCHAR(20) NOT NULL DEFAULT 'viewer' CONSTRAINT CHK_app_users_role CHECK (role IN ('admin','supervisor','viewer')),
                 active BIT NOT NULL DEFAULT 1,
-                created_at DATETIME NOT NULL DEFAULT GETDATE(),
+                created_at DATETIME NOT NULL DEFAULT CAST(GETDATE() AT TIME ZONE 'UTC' AT TIME ZONE 'SA Western Standard Time' AS DATETIME),
                 last_login DATETIME NULL,
                 CONSTRAINT UQ_app_users_email UNIQUE (email),
                 CONSTRAINT UQ_app_users_ms_oid UNIQUE (ms_oid)
@@ -48,7 +48,7 @@ async function ensureAuthSchema() {
                 id INT IDENTITY(1,1) PRIMARY KEY,
                 name NVARCHAR(100) NOT NULL,
                 description NVARCHAR(255),
-                created_at DATETIME NOT NULL DEFAULT GETDATE(),
+                created_at DATETIME NOT NULL DEFAULT CAST(GETDATE() AT TIME ZONE 'UTC' AT TIME ZONE 'SA Western Standard Time' AS DATETIME),
                 CONSTRAINT UQ_app_vendor_groups_name UNIQUE (name)
             );
         END

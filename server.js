@@ -2,6 +2,7 @@
  * server.js - Servidor Express unificado
  * API + frontend + sync automatico a Dynamics 365
  */
+process.env.TZ = 'America/Santo_Domingo';
 require('dotenv').config();
 const express = require('express');
 const cors = require('cors');

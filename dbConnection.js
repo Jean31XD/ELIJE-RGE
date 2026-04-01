@@ -80,7 +80,7 @@ async function ensureColumnExists() {
                 empleado_responsable NVARCHAR(100) NOT NULL,
                 cliente_accountnum NVARCHAR(50) NOT NULL,
                 cliente_nombre NVARCHAR(300) NOT NULL,
-                fecha_asignacion DATETIME DEFAULT GETDATE(),
+                fecha_asignacion DATETIME DEFAULT CAST(GETDATE() AT TIME ZONE 'UTC' AT TIME ZONE 'SA Western Standard Time' AS DATETIME),
                 CONSTRAINT UQ_vce_emp_cliente UNIQUE (empleado_responsable, cliente_accountnum)
             );
         END
@@ -376,7 +376,7 @@ async function getDashboardData(filters = {}, vendorFilter = null) {
             if (vendorFilter && vendorFilter.length > 0) addVendorParams(r, vendorFilter);
             const dailyCond = filters.desde || filters.hasta
                 ? conditions.join(' AND ')
-                : `fecha_pedido >= DATEADD(DAY, -30, GETDATE())` + (conditions.length ? ' AND ' + conditions.join(' AND ') : '');
+                : `fecha_pedido >= DATEADD(DAY, -30, CAST(GETDATE() AT TIME ZONE 'UTC' AT TIME ZONE 'SA Western Standard Time' AS DATETIME))` + (conditions.length ? ' AND ' + conditions.join(' AND ') : '');
             return r.query(`
                 SELECT
                     CONVERT(VARCHAR(10), fecha_pedido, 120) AS fecha,
@@ -398,7 +398,7 @@ async function getDashboardData(filters = {}, vendorFilter = null) {
             if (vendorFilter && vendorFilter.length > 0) addVendorParams(r, vendorFilter);
             const monthlyCond = filters.desde || filters.hasta
                 ? conditions.join(' AND ')
-                : `fecha_pedido >= DATEADD(MONTH, -12, GETDATE())` + (conditions.length ? ' AND ' + conditions.join(' AND ') : '');
+                : `fecha_pedido >= DATEADD(MONTH, -12, CAST(GETDATE() AT TIME ZONE 'UTC' AT TIME ZONE 'SA Western Standard Time' AS DATETIME))` + (conditions.length ? ' AND ' + conditions.join(' AND ') : '');
             return r.query(`
                 SELECT
                     FORMAT(fecha_pedido, 'yyyy-MM') AS mes,
