@@ -3,7 +3,7 @@
  */
 const { getPool } = require('../dbConnection');
 const sql = require('mssql');
-const bcrypt = require('bcrypt');
+const bcrypt = require('bcryptjs');
 
 const DEFAULT_PASSWORD = 'A*12345678';
 const BCRYPT_ROUNDS = 10;
