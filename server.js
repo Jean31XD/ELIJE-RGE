@@ -6,6 +6,8 @@ process.env.TZ = 'America/Santo_Domingo';
 require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
+const helmet = require('helmet');
+const rateLimit = require('express-rate-limit');
 const path = require('path');
 const {
     getAllOrders,
@@ -43,7 +45,42 @@ const adminRoutes = require('./routes/adminRoutes');
 const { requireAuth, getVendorFilter } = require('./middleware/auth');
 
 const app = express();
-app.use(cors());
+
+// === SEGURIDAD ===
+
+// Headers de seguridad
+app.use(helmet({
+    contentSecurityPolicy: false, // El frontend usa CDNs externos (Leaflet, etc.)
+    crossOriginEmbedderPolicy: false
+}));
+
+// CORS: solo permitir el mismo origen
+app.use(cors({
+    origin: process.env.ALLOWED_ORIGIN || false,
+    credentials: true
+}));
+
+// Rate limiting general para todas las rutas API
+const apiLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000, // 15 minutos
+    max: 300,
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: { error: 'Demasiadas solicitudes, intenta más tarde.' }
+});
+
+// Rate limiting estricto para rutas de autenticación
+const authLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000, // 15 minutos
+    max: 20,
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: { error: 'Demasiados intentos de autenticación, intenta en 15 minutos.' }
+});
+
+app.use('/api/', apiLimiter);
+app.use('/api/auth/', authLimiter);
+
 app.use(express.json());
 
 const PORT = process.env.PORT || 3000;

@@ -8,7 +8,7 @@ function requireAuth(req, res, next) {
     if (!header || !header.startsWith('Bearer ')) return res.status(401).json({ error: 'No autenticado' });
     try {
         const token = header.split(' ')[1];
-        const decoded = jwt.verify(token, process.env.JWT_SECRET);
+        const decoded = jwt.verify(token, process.env.JWT_SECRET, { algorithms: ['HS256'] });
         req.user = decoded;
         next();
     } catch {

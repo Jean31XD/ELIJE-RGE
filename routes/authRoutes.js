@@ -135,7 +135,7 @@ router.get('/callback', async (req, res) => {
             role: fullUser.role,
             modules: fullUser.modules,
             vendors: fullUser.vendors
-        }, process.env.JWT_SECRET, { expiresIn: '24h' });
+        }, process.env.JWT_SECRET, { expiresIn: '8h', algorithm: 'HS256' });
 
         // 5. Redirigir al frontend con el token
         const userData = encodeURIComponent(JSON.stringify({
