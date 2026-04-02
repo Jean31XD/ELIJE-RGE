@@ -55,6 +55,7 @@ app.use(helmet({
             defaultSrc: ["'self'"],
             scriptSrc: [
                 "'self'",
+                "'unsafe-inline'", // El HTML usa onclick= en muchos elementos
                 "https://unpkg.com",
                 "https://cdn.jsdelivr.net"
             ],
