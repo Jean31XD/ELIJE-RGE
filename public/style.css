@@ -1265,7 +1265,7 @@ tfoot td {
         grid-template-columns: 1fr;
     }
     .dashboard-rankings-row {
-        grid-template-columns: 1fr;
+        grid-template-columns: 1fr 1fr;
     }
     .sync-stats-row {
         grid-template-columns: repeat(2, 1fr);
@@ -2140,7 +2140,7 @@ tfoot td {
 /* -- Rankings -- */
 .dashboard-rankings-row {
     display: grid;
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: 1fr 1fr 1fr;
     gap: 18px;
     padding: 0 32px 20px;
 }
@@ -2257,7 +2257,18 @@ tfoot td {
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-    margin-bottom: 6px;
+    margin-bottom: 2px;
+}
+
+.ranking-subname {
+    font-size: 11px;
+    font-weight: 500;
+    color: var(--text-muted);
+    display: block;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    margin-bottom: 5px;
 }
 
 .ranking-bar-bg {
@@ -3411,7 +3422,7 @@ tbody tr.clickable-row {
         gap: 14px !important;
     }
     .dashboard-rankings-row {
-        grid-template-columns: 1fr 1fr !important;
+        grid-template-columns: 1fr 1fr 1fr !important;
         padding: 0 24px 16px !important;
         gap: 14px !important;
     }
@@ -3439,7 +3450,7 @@ tbody tr.clickable-row {
 /* ---- TABLET (≤ 900px) ---- */
 @media (max-width: 900px) {
     .dashboard-rankings-row {
-        grid-template-columns: 1fr !important;
+        grid-template-columns: 1fr 1fr !important;
     }
     .dashboard-charts-row-equal {
         grid-template-columns: 1fr !important;
@@ -3705,11 +3716,172 @@ tbody tr.clickable-row {
     .ped-kpi-val { font-size: 14px !important; }
 }
 
+/* ============ MEJORAS RESPONSIVAS ============ */
+
+/* Scroll táctil suave en iOS para tablas */
+.table-wrapper {
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior-x: contain;
+}
+
+/* Tamaños mínimos de toque (44px) para elementos interactivos */
+.btn, .nav-item, .btn-hamburger,
+.filter-group select, .filter-group input,
+.page-size-select, .dash-filter-group select,
+.dash-filter-group input {
+    min-height: 36px;
+}
+
+@media (max-width: 768px) {
+    /* Touch targets de 44px en móvil */
+    .btn, .nav-item {
+        min-height: 44px;
+    }
+    .nav-item {
+        padding: 12px 14px;
+        font-size: 14px;
+    }
+    .filter-group select,
+    .filter-group input,
+    .dash-filter-group select,
+    .dash-filter-group input,
+    .page-size-select {
+        min-height: 44px;
+        font-size: 16px; /* evita zoom automático en iOS */
+    }
+    .search-box input {
+        min-height: 44px;
+        font-size: 16px;
+    }
+
+    /* Topbar compacto */
+    .topbar-right .btn {
+        padding: 8px 10px;
+        min-height: 40px;
+    }
+    .user-chip-role { display: none; }
+
+    /* Filtros apilados con ancho completo */
+    .filters-bar {
+        flex-wrap: wrap;
+    }
+    .filter-group {
+        width: 100%;
+    }
+    .filter-group input,
+    .filter-group select {
+        width: 100%;
+    }
+
+    /* Paginación compacta */
+    .pagination-bar {
+        flex-wrap: wrap;
+        gap: 8px;
+    }
+
+    /* Admin tabs con scroll horizontal */
+    .admin-tabs {
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+        flex-wrap: nowrap;
+        scrollbar-width: none;
+    }
+    .admin-tabs::-webkit-scrollbar { display: none; }
+    .admin-tab {
+        white-space: nowrap;
+        flex-shrink: 0;
+    }
+
+    /* Modales bottom-sheet desde 768px también */
+    .modal-content {
+        width: 100%;
+        border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+        max-height: 90vh;
+        position: fixed;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        margin: 0;
+    }
+    .modal {
+        align-items: flex-end;
+    }
+
+    /* Formularios en 1 columna */
+    .form-grid {
+        grid-template-columns: 1fr;
+    }
+
+    /* Sidebar más ancha en móvil para facilitar toque */
+    :root {
+        --sidebar-width: 280px;
+    }
+}
+
+@media (max-width: 480px) {
+    /* KPIs en 1 columna para pantallas muy chicas */
+    .dashboard-kpis {
+        grid-template-columns: 1fr !important;
+    }
+
+    /* Ocultar columnas menos importantes en tablas */
+    .col-hide-xs {
+        display: none !important;
+    }
+
+    /* Botones full-width en acciones de formulario */
+    .modal-footer {
+        flex-direction: column-reverse;
+    }
+    .modal-footer .btn {
+        width: 100%;
+        justify-content: center;
+    }
+
+    /* Topbar — solo avatar + título */
+    .user-chip-name { display: none; }
+    .topbar-left h1 { font-size: 15px; }
+}
+
 /* ============ MEJORAS VISUALES (frontend-design skill) ============ */
 
 /* Topbar con micro sombra para separación */
 .topbar {
     box-shadow: 0 1px 0 var(--border), 0 2px 8px rgba(0,0,0,0.03);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+}
+
+/* Cabecera de tabla más elegante */
+th {
+    background: #f8fafc;
+    letter-spacing: 0.4px;
+    border-bottom: 2px solid var(--border);
+}
+
+/* Fila de tabla con acento izquierdo al hover */
+tbody tr.clickable-row:hover td:first-child {
+    box-shadow: inset 3px 0 0 var(--primary);
+}
+
+/* Estado vacío de tablas */
+.empty-state {
+    padding: 48px 24px;
+    text-align: center;
+    color: var(--text-secondary);
+}
+
+/* Tags de estado más limpios */
+.status-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 3px 10px;
+    border-radius: 20px;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.2px;
+    text-transform: uppercase;
 }
 
 /* Sidebar scrollbar más sutil */

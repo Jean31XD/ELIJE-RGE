@@ -73,14 +73,20 @@ app.use(helmet({
             imgSrc: [
                 "'self'",
                 "data:",
+                "blob:",
                 "https://*.tile.openstreetmap.org",
+                "https://*.openstreetmap.org",
+                "https://*.basemaps.cartocdn.com",
                 "https://unpkg.com"
             ],
             connectSrc: [
                 "'self'",
-                "https://unpkg.com",       // source maps de Leaflet
-                "https://cdn.jsdelivr.net" // source maps de Chart.js
+                "https://unpkg.com",
+                "https://cdn.jsdelivr.net",
+                "https://*.tile.openstreetmap.org",
+                "https://*.openstreetmap.org"
             ],
+            workerSrc: ["'self'", "blob:"],
             frameSrc: ["'none'"],
             objectSrc: ["'none'"],
             baseUri: ["'self'"]

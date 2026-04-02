@@ -1475,6 +1475,16 @@ function renderDashboard(data, filters = {}) {
                 </h3>
                 <div class="ranking-list" id="ranking-clientes"></div>
             </div>
+            <div class="dashboard-ranking-card">
+                <h3 class="ranking-title">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M20 7H4a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2z"/>
+                        <path d="M16 3H8l-2 4h12l-2-4z"/>
+                    </svg>
+                    Top Articulos
+                </h3>
+                <div class="ranking-list" id="ranking-articulos"></div>
+            </div>
         </div>
 
         <div class="dashboard-recent">
@@ -1514,6 +1524,7 @@ function renderDashboard(data, filters = {}) {
 
     renderRankingList('ranking-vendedores', data.topVendedores, 'vendedor_nombre');
     renderRankingList('ranking-clientes', data.topClientes, 'cliente_nombre');
+    renderArticulosList('ranking-articulos', data.topArticulos);
     renderRecentOrders(data.recentOrders);
 
     setTimeout(() => initDashboardCharts(data), 50);
@@ -1549,6 +1560,43 @@ function renderRankingList(containerId, items, nameField) {
                 <div class="ranking-stats">
                     <span class="ranking-amount">${formatter.format(item.monto_total)}</span>
                     <span class="ranking-count">${item.total_pedidos} pedidos</span>
+                </div>
+            </div>
+        `;
+    }).join('');
+}
+
+function renderArticulosList(containerId, items) {
+    const container = document.getElementById(containerId);
+    if (!items || items.length === 0) {
+        container.innerHTML = '<p style="color: var(--text-secondary); padding: 16px;">Sin datos</p>';
+        return;
+    }
+    const maxMonto = items[0].monto_total;
+    const iconColors = ['#2563eb', '#7c3aed', '#0891b2', '#059669', '#d97706', '#dc2626', '#4f46e5', '#0d9488', '#b45309', '#be185d'];
+
+    container.innerHTML = items.map((item, i) => {
+        const pct = maxMonto > 0 ? (item.monto_total / maxMonto * 100) : 0;
+        const posClass = i === 0 ? 'ranking-gold' : i === 1 ? 'ranking-silver' : i === 2 ? 'ranking-bronze' : '';
+        const code = item.item_id || '';
+        const desc = item.descripcion || '';
+        const initials = code.slice(0, 2).toUpperCase() || '#';
+        const bg = iconColors[i % iconColors.length];
+
+        return `
+            <div class="ranking-item">
+                <span class="ranking-pos ${posClass}">${i + 1}</span>
+                <span class="ranking-avatar" style="background: ${bg}; font-size: 11px;">${escapeHtml(initials)}</span>
+                <div class="ranking-info">
+                    <span class="ranking-name">${escapeHtml(desc)}</span>
+                    <span class="ranking-subname">${escapeHtml(code)}</span>
+                    <div class="ranking-bar-bg">
+                        <div class="ranking-bar" style="width: ${pct}%"></div>
+                    </div>
+                </div>
+                <div class="ranking-stats">
+                    <span class="ranking-amount">${formatter.format(item.monto_total)}</span>
+                    <span class="ranking-count">${item.total_cantidad ? Number(item.total_cantidad).toLocaleString('es-DO') + ' uds' : item.total_lineas + ' lineas'}</span>
                 </div>
             </div>
         `;

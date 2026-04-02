@@ -310,7 +310,7 @@ async function getDashboardData(filters = {}, vendorFilter = null) {
             // Return empty dashboard if user has no vendors
             return {
                 kpis: { total_pedidos: 0, monto_total: 0, promedio_pedido: 0, enviados_dynamics: 0, pendientes: 0, con_error: 0, total_vendedores: 0, total_clientes: 0 },
-                dailyTrend: [], monthlyTrend: [], topVendedores: [], topClientes: [], topCategorias: [], recentOrders: []
+                dailyTrend: [], monthlyTrend: [], topVendedores: [], topClientes: [], topCategorias: [], topArticulos: [], recentOrders: []
             };
         }
         conditions.push(buildVendorInClause(request, vendorFilter));
@@ -343,6 +343,29 @@ async function getDashboardData(filters = {}, vendorFilter = null) {
     }
     const catWhereClause = catConditions.length > 0 ? 'WHERE ' + catConditions.join(' AND ') : '';
 
+    const artConditions = [];
+    const artRequest = db.request();
+    if (filters.vendedor) {
+        artConditions.push("p.vendedor_nombre LIKE '%' + @vendedor + '%'");
+        artRequest.input('vendedor', filters.vendedor);
+    }
+    if (filters.cliente) {
+        artConditions.push("p.cliente_nombre LIKE '%' + @cliente + '%'");
+        artRequest.input('cliente', filters.cliente);
+    }
+    if (filters.desde) {
+        artConditions.push("CONVERT(DATE, p.fecha_pedido) >= @desde");
+        artRequest.input('desde', filters.desde);
+    }
+    if (filters.hasta) {
+        artConditions.push("CONVERT(DATE, p.fecha_pedido) <= @hasta");
+        artRequest.input('hasta', filters.hasta);
+    }
+    if (vendorFilter !== null && Array.isArray(vendorFilter) && vendorFilter.length > 0) {
+        artConditions.push(buildVendorInClause(artRequest, vendorFilter, 'p.vendedor_nombre'));
+    }
+    const artWhereClause = artConditions.length > 0 ? 'WHERE ' + artConditions.join(' AND ') : '';
+
     const [
         kpisResult,
         dailyTrendResult,
@@ -350,6 +373,7 @@ async function getDashboardData(filters = {}, vendorFilter = null) {
         topVendedoresResult,
         topClientesResult,
         topCategoriasResult,
+        topArticulosResult,
         recentOrdersResult
     ] = await Promise.all([
         // KPIs generales
@@ -474,6 +498,36 @@ async function getDashboardData(filters = {}, vendorFilter = null) {
                 `);
             }
         })(),
+        // Top 10 articulos por monto
+        (function () {
+            if (artConditions.length > 0) {
+                return artRequest.query(`
+                    SELECT TOP 10
+                        ISNULL(d.item_id, 'Sin Codigo') AS item_id,
+                        ISNULL(d.descripcion, 'Sin Descripcion') AS descripcion,
+                        COUNT(*) AS total_lineas,
+                        ISNULL(SUM(d.cantidad), 0) AS total_cantidad,
+                        ISNULL(SUM(d.subtotal_linea), 0) AS monto_total
+                    FROM [dbo].[pedidos_detalle] d
+                    INNER JOIN [dbo].[pedidos] p ON d.pedido_id = p.pedido_id
+                    ${artWhereClause}
+                    GROUP BY d.item_id, d.descripcion
+                    ORDER BY monto_total DESC
+                `);
+            } else {
+                return artRequest.query(`
+                    SELECT TOP 10
+                        ISNULL(item_id, 'Sin Codigo') AS item_id,
+                        ISNULL(descripcion, 'Sin Descripcion') AS descripcion,
+                        COUNT(*) AS total_lineas,
+                        ISNULL(SUM(cantidad), 0) AS total_cantidad,
+                        ISNULL(SUM(subtotal_linea), 0) AS monto_total
+                    FROM [dbo].[pedidos_detalle]
+                    GROUP BY item_id, descripcion
+                    ORDER BY monto_total DESC
+                `);
+            }
+        })(),
         // Ultimos 5 pedidos
         (function () {
             const r = db.request();
@@ -502,6 +556,7 @@ async function getDashboardData(filters = {}, vendorFilter = null) {
         topVendedores: topVendedoresResult.recordset,
         topClientes: topClientesResult.recordset,
         topCategorias: topCategoriasResult.recordset,
+        topArticulos: topArticulosResult.recordset,
         recentOrders: recentOrdersResult.recordset
     };
 }
