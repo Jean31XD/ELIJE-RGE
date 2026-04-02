@@ -50,7 +50,38 @@ const app = express();
 
 // Headers de seguridad
 app.use(helmet({
-    contentSecurityPolicy: false, // El frontend usa CDNs externos (Leaflet, etc.)
+    contentSecurityPolicy: {
+        directives: {
+            defaultSrc: ["'self'"],
+            scriptSrc: [
+                "'self'",
+                "https://unpkg.com",
+                "https://cdn.jsdelivr.net"
+            ],
+            styleSrc: [
+                "'self'",
+                "'unsafe-inline'", // Leaflet y otros inyectan estilos inline
+                "https://unpkg.com",
+                "https://fonts.googleapis.com"
+            ],
+            fontSrc: [
+                "'self'",
+                "https://fonts.gstatic.com"
+            ],
+            imgSrc: [
+                "'self'",
+                "data:",
+                "https://*.tile.openstreetmap.org",
+                "https://unpkg.com"
+            ],
+            connectSrc: [
+                "'self'"
+            ],
+            frameSrc: ["'none'"],
+            objectSrc: ["'none'"],
+            baseUri: ["'self'"]
+        }
+    },
     crossOriginEmbedderPolicy: false
 }));
 
@@ -431,6 +462,26 @@ app.use((req, res) => {
     }
     // Para lo demás, servir el index (SPA)
     res.sendFile(path.join(__dirname, 'public', 'index.html'));
+});
+
+// === GLOBAL ERROR HANDLER ===
+// Captura errores pasados via next(err) desde cualquier ruta o middleware
+app.use((err, req, res, next) => {
+    const statusCode = err.status || err.statusCode || 500;
+    const isProd = process.env.NODE_ENV === 'production';
+    console.error(`[ERROR] ${req.method} ${req.url} →`, err.stack || err.message);
+    res.status(statusCode).json({
+        error: isProd && statusCode >= 500 ? 'Error interno del servidor' : err.message
+    });
+});
+
+// === MANEJO DE ERRORES NO CAPTURADOS ===
+process.on('unhandledRejection', (reason) => {
+    console.error('[UNHANDLED REJECTION]', reason);
+});
+process.on('uncaughtException', (err) => {
+    console.error('[UNCAUGHT EXCEPTION]', err);
+    process.exit(1);
 });
 
 // --- INICIO ---

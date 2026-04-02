@@ -4,6 +4,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="robots" content="noindex, nofollow">
+    <meta name="description" content="Portal interno de gestión de pedidos y sincronización con Dynamics 365 — Manuel Corripio S.A.S">
     <title>Portal de Pedidos | Manuel Corripio</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
@@ -19,6 +21,12 @@
 
 <body>
 
+    <!-- Skip Link (Accesibilidad: navegación por teclado) -->
+    <a href="#main-content" class="skip-link">Saltar al contenido principal</a>
+
+    <!-- Región de anuncios para lectores de pantalla -->
+    <div id="sr-announcer" role="status" aria-live="polite" aria-atomic="true" class="sr-only"></div>
+
     <!-- Login Overlay -->
     <div id="login-overlay" class="login-overlay">
         <div class="login-card">
@@ -26,7 +34,7 @@
             <h1 class="login-title">Portal de Pedidos</h1>
             <p class="login-subtitle">Inicia sesión con tu cuenta Microsoft corporativa</p>
             <button id="btn-ms-login" class="btn-ms-login" onclick="iniciarLoginMicrosoft()">
-                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 21 21">
+                <svg aria-hidden="true" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 21 21">
                     <rect x="1" y="1" width="9" height="9" fill="#f25022"/>
                     <rect x="11" y="1" width="9" height="9" fill="#7fba00"/>
                     <rect x="1" y="11" width="9" height="9" fill="#00a4ef"/>
@@ -34,7 +42,7 @@
                 </svg>
                 Iniciar sesión con Microsoft
             </button>
-            <p id="login-error" class="login-error" style="display:none;"></p>
+            <p id="login-error" class="login-error" role="alert" aria-live="assertive" style="display:none;"></p>
             <div id="login-loading" class="login-loading" style="display:none;">
                 <div class="spinner"></div>
                 <span>Verificando credenciales...</span>
@@ -49,9 +57,9 @@
         <div class="sidebar-brand">
             <img src="logo-mc.png" alt="Manuel Corripio S.A.S" class="brand-logo">
         </div>
-        <nav class="sidebar-nav">
+        <nav class="sidebar-nav" aria-label="Navegación principal">
             <a href="#" class="nav-item active" data-view="dashboard">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <rect x="3" y="3" width="7" height="7"></rect>
                     <rect x="14" y="3" width="7" height="7"></rect>
                     <rect x="14" y="14" width="7" height="7"></rect>
@@ -60,7 +68,7 @@
                 Dashboard
             </a>
             <a href="#" class="nav-item" data-view="pedidos">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
                     <polyline points="14 2 14 8 20 8" />
                     <line x1="16" y1="13" x2="8" y2="13" />
@@ -69,14 +77,14 @@
                 Pedidos
             </a>
             <a href="#" class="nav-item" data-view="cobros">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <line x1="12" y1="1" x2="12" y2="23"></line>
                     <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path>
                 </svg>
                 Cobros
             </a>
             <a href="#" class="nav-item" data-view="sync">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <polyline points="23 4 23 10 17 10" />
                     <polyline points="1 20 1 14 7 14" />
                     <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15" />
@@ -84,14 +92,14 @@
                 Dynamics 365
             </a>
             <a href="#" class="nav-item" data-view="logs">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"></path>
                     <polyline points="13 2 13 9 20 9"></polyline>
                 </svg>
                 Logs de Sync
             </a>
             <a href="#" class="nav-item" data-view="rangos">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
                     <line x1="3" y1="9" x2="21" y2="9"></line>
                     <line x1="3" y1="15" x2="21" y2="15"></line>
@@ -100,14 +108,14 @@
                 Gestión de Rangos
             </a>
             <a href="#" class="nav-item" data-view="tracking">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path>
                     <circle cx="12" cy="10" r="3"></circle>
                 </svg>
                 Tracking
             </a>
             <a href="#" class="nav-item" data-view="clientes-extra">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
                     <circle cx="9" cy="7" r="4"></circle>
                     <line x1="19" y1="8" x2="19" y2="14"></line>
@@ -116,7 +124,7 @@
                 Clientes Asignados
             </a>
             <a href="#" class="nav-item nav-admin" data-view="admin" style="display:none;">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
                 </svg>
                 Administración
@@ -131,13 +139,13 @@
     </aside>
 
     <!-- Main Content -->
-    <main class="main-content">
+    <main class="main-content" id="main-content">
 
         <!-- Top Bar -->
         <header class="topbar">
             <div class="topbar-left">
                 <button class="btn-hamburger" id="btn-hamburger" onclick="toggleSidebar()" aria-label="Menú">
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/>
                     </svg>
                 </button>
@@ -151,8 +159,8 @@
                     <span class="user-chip-role" id="user-chip-role"></span>
                     <button class="btn btn-ghost btn-sm" onclick="cerrarSesion()">Salir</button>
                 </div>
-                <button class="btn btn-ghost" onclick="cargarPedidos()" title="Recargar datos">
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <button class="btn btn-ghost" onclick="cargarPedidos()" title="Recargar datos" aria-label="Recargar datos">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
                         <polyline points="23 4 23 10 17 10" />
                         <polyline points="1 20 1 14 7 14" />
                         <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15" />

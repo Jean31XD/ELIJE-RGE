@@ -137,23 +137,42 @@ router.get('/callback', async (req, res) => {
             vendors: fullUser.vendors
         }, process.env.JWT_SECRET, { expiresIn: '8h', algorithm: 'HS256' });
 
-        // 5. Redirigir al frontend con el token
-        const userData = encodeURIComponent(JSON.stringify({
+        // 5. Setear cookies y redirigir (sin token en URL)
+        const isProduction = (req.get('x-forwarded-proto') || req.protocol) === 'https';
+        const cookieOpts = {
+            httpOnly: true,
+            secure: isProduction,
+            sameSite: 'lax',
+            maxAge: 8 * 60 * 60 * 1000 // 8 horas
+        };
+
+        // Cookie HttpOnly para el JWT (no accesible desde JS)
+        res.cookie('app_token', sessionToken, cookieOpts);
+
+        // Cookie JS-readable solo para datos de display (no el token)
+        res.cookie('app_user', encodeURIComponent(JSON.stringify({
             id: fullUser.id,
             email: fullUser.email,
             display_name: fullUser.display_name,
             role: fullUser.role,
             modules: fullUser.modules
-        }));
+        })), { ...cookieOpts, httpOnly: false });
 
         console.log(`[AUTH] Login exitoso: ${email} (${fullUser.role})`);
-        res.redirect(`/?token=${sessionToken}&user=${userData}`);
+        res.redirect('/');
 
     } catch (err) {
         console.error('[AUTH] Error en callback:', err.response?.data || err.message);
         const msg = err.response?.data?.error_description || err.message;
         res.redirect(`/?auth_error=${encodeURIComponent(msg)}`);
     }
+});
+
+// POST /api/auth/logout - Limpia las cookies de sesión
+router.post('/logout', (req, res) => {
+    res.clearCookie('app_token');
+    res.clearCookie('app_user');
+    res.json({ ok: true });
 });
 
 // GET /api/auth/me - Retorna el usuario actual (protegido)

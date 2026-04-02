@@ -3,11 +3,31 @@
  */
 const jwt = require('jsonwebtoken');
 
+function parseCookies(req) {
+    const cookies = {};
+    const header = req.headers.cookie;
+    if (header) header.split(';').forEach(part => {
+        const idx = part.indexOf('=');
+        if (idx < 0) return;
+        const key = part.slice(0, idx).trim();
+        const val = part.slice(idx + 1).trim();
+        cookies[key] = val;
+    });
+    return cookies;
+}
+
 function requireAuth(req, res, next) {
-    const header = req.headers.authorization;
-    if (!header || !header.startsWith('Bearer ')) return res.status(401).json({ error: 'No autenticado' });
+    // Leer token desde cookie HttpOnly (preferido) o Authorization header (fallback)
+    const cookies = parseCookies(req);
+    let token = cookies['app_token'];
+
+    if (!token) {
+        const header = req.headers.authorization;
+        if (header && header.startsWith('Bearer ')) token = header.split(' ')[1];
+    }
+
+    if (!token) return res.status(401).json({ error: 'No autenticado' });
     try {
-        const token = header.split(' ')[1];
         const decoded = jwt.verify(token, process.env.JWT_SECRET, { algorithms: ['HS256'] });
         req.user = decoded;
         next();

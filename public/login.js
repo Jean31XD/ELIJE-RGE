@@ -1,6 +1,7 @@
 /**
  * login.js - Autenticación Microsoft via server-side OAuth redirect
  * Sin MSAL en el browser - el servidor maneja el flujo completo
+ * Token almacenado en cookie HttpOnly (no accesible desde JS)
  */
 
 function iniciarLoginMicrosoft() {
@@ -16,13 +17,19 @@ function iniciarLoginMicrosoft() {
     window.location.href = '/api/auth/microsoft';
 }
 
+// Las cookies HttpOnly se envían automáticamente - no se necesita Authorization header
 function getAuthHeaders() {
-    const token = localStorage.getItem('app_token');
-    return token ? { 'Authorization': 'Bearer ' + token } : {};
+    return {};
+}
+
+function getCookie(name) {
+    const match = document.cookie.split(';').map(c => c.trim()).find(c => c.startsWith(name + '='));
+    if (!match) return null;
+    try { return decodeURIComponent(match.slice(name.length + 1)); } catch { return null; }
 }
 
 function getCurrentUser() {
-    const raw = localStorage.getItem('app_user');
+    const raw = getCookie('app_user');
     try {
         return raw ? JSON.parse(raw) : null;
     } catch {
@@ -31,9 +38,12 @@ function getCurrentUser() {
 }
 
 function cerrarSesion() {
-    localStorage.removeItem('app_token');
-    localStorage.removeItem('app_user');
-    mostrarLoginOverlay();
+    // El servidor limpia la cookie HttpOnly (JS no puede hacerlo directamente)
+    fetch('/api/auth/logout', { method: 'POST', credentials: 'include' })
+        .catch(() => {})
+        .finally(() => {
+            mostrarLoginOverlay();
+        });
 }
 
 function mostrarLoginOverlay() {
@@ -50,11 +60,9 @@ function mostrarLoginOverlay() {
     if (chip) chip.style.display = 'none';
 }
 
-// Verifica si hay token en la URL (viene del callback OAuth) o en localStorage
+// Verifica sesión: primero chequea errores en URL, luego llama /api/auth/me
 function checkAuth() {
     const params = new URLSearchParams(window.location.search);
-    const token = params.get('token');
-    const userParam = params.get('user');
     const authError = params.get('auth_error');
 
     // Mostrar error si Microsoft devolvió uno
@@ -69,42 +77,24 @@ function checkAuth() {
         return;
     }
 
-    // Token recibido desde el callback OAuth
-    if (token && userParam) {
-        try {
-            const user = JSON.parse(decodeURIComponent(userParam));
-            localStorage.setItem('app_token', token);
-            localStorage.setItem('app_user', JSON.stringify(user));
-        } catch {
-            mostrarLoginOverlay();
-            return;
-        }
+    // Limpiar URL si tiene parámetros residuales
+    if (window.location.search) {
         window.history.replaceState({}, '', '/');
-        initApp();
-        return;
     }
 
-    // Verificar token existente en localStorage
-    const storedToken = localStorage.getItem('app_token');
-    if (!storedToken) {
-        mostrarLoginOverlay();
-        return;
-    }
-
-    try {
-        const parts = storedToken.split('.');
-        if (parts.length !== 3) throw new Error('token malformado');
-        const payload = JSON.parse(atob(parts[1].replace(/-/g, '+').replace(/_/g, '/')));
-        if (payload.exp * 1000 < Date.now()) {
-            localStorage.removeItem('app_token');
-            localStorage.removeItem('app_user');
+    // Verificar sesión activa via cookie HttpOnly (opaca para JS)
+    fetch('/api/auth/me', { credentials: 'include' })
+        .then(res => {
+            if (res.status === 401) {
+                mostrarLoginOverlay();
+                return null;
+            }
+            return res.json();
+        })
+        .then(user => {
+            if (user) initApp();
+        })
+        .catch(() => {
             mostrarLoginOverlay();
-            return;
-        }
-        initApp();
-    } catch {
-        localStorage.removeItem('app_token');
-        localStorage.removeItem('app_user');
-        mostrarLoginOverlay();
-    }
+        });
 }

@@ -1,7 +1,8 @@
 // Auth helper — delegates to login.js (loaded before app.js)
+// credentials: 'include' envía la cookie HttpOnly automáticamente
 function apiFetch(url, options = {}) {
-    options.headers = Object.assign({}, options.headers || {},
-        typeof getAuthHeaders === 'function' ? getAuthHeaders() : {});
+    options.credentials = 'include';
+    options.headers = Object.assign({}, options.headers || {});
     return fetch(url, options).then(res => {
         if (res.status === 401) {
             if (typeof mostrarLoginOverlay === 'function') mostrarLoginOverlay();
