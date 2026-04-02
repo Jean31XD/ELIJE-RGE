@@ -55,13 +55,14 @@ app.use(helmet({
             defaultSrc: ["'self'"],
             scriptSrc: [
                 "'self'",
-                "'unsafe-inline'", // El HTML usa onclick= en muchos elementos
+                "'unsafe-inline'",
                 "https://unpkg.com",
                 "https://cdn.jsdelivr.net"
             ],
+            scriptSrcAttr: ["'unsafe-inline'"], // Permite onclick=, onchange=, etc.
             styleSrc: [
                 "'self'",
-                "'unsafe-inline'", // Leaflet y otros inyectan estilos inline
+                "'unsafe-inline'",
                 "https://unpkg.com",
                 "https://fonts.googleapis.com"
             ],
@@ -76,7 +77,9 @@ app.use(helmet({
                 "https://unpkg.com"
             ],
             connectSrc: [
-                "'self'"
+                "'self'",
+                "https://unpkg.com",       // source maps de Leaflet
+                "https://cdn.jsdelivr.net" // source maps de Chart.js
             ],
             frameSrc: ["'none'"],
             objectSrc: ["'none'"],
