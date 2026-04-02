@@ -504,26 +504,26 @@ async function getDashboardData(filters = {}, vendorFilter = null) {
                 return artRequest.query(`
                     SELECT TOP 10
                         ISNULL(d.item_id, 'Sin Codigo') AS item_id,
-                        ISNULL(d.descripcion, 'Sin Descripcion') AS descripcion,
+                        ISNULL(d.producto_nombre, 'Sin Nombre') AS producto_nombre,
                         COUNT(*) AS total_lineas,
                         ISNULL(SUM(d.cantidad), 0) AS total_cantidad,
                         ISNULL(SUM(d.subtotal_linea), 0) AS monto_total
                     FROM [dbo].[pedidos_detalle] d
                     INNER JOIN [dbo].[pedidos] p ON d.pedido_id = p.pedido_id
                     ${artWhereClause}
-                    GROUP BY d.item_id, d.descripcion
+                    GROUP BY d.item_id, d.producto_nombre
                     ORDER BY monto_total DESC
                 `);
             } else {
                 return artRequest.query(`
                     SELECT TOP 10
                         ISNULL(item_id, 'Sin Codigo') AS item_id,
-                        ISNULL(descripcion, 'Sin Descripcion') AS descripcion,
+                        ISNULL(producto_nombre, 'Sin Nombre') AS producto_nombre,
                         COUNT(*) AS total_lineas,
                         ISNULL(SUM(cantidad), 0) AS total_cantidad,
                         ISNULL(SUM(subtotal_linea), 0) AS monto_total
                     FROM [dbo].[pedidos_detalle]
-                    GROUP BY item_id, descripcion
+                    GROUP BY item_id, producto_nombre
                     ORDER BY monto_total DESC
                 `);
             }

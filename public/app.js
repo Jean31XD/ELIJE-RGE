@@ -1579,7 +1579,7 @@ function renderArticulosList(containerId, items) {
         const pct = maxMonto > 0 ? (item.monto_total / maxMonto * 100) : 0;
         const posClass = i === 0 ? 'ranking-gold' : i === 1 ? 'ranking-silver' : i === 2 ? 'ranking-bronze' : '';
         const code = item.item_id || '';
-        const desc = item.descripcion || '';
+        const desc = item.producto_nombre || '';
         const initials = code.slice(0, 2).toUpperCase() || '#';
         const bg = iconColors[i % iconColors.length];
 
