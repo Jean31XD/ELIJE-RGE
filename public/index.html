@@ -781,10 +781,9 @@
                         ↻ Sincronizar desde Dynamics
                     </button>
                 </div>
-                <div style="padding:0 32px 12px;display:flex;align-items:center;gap:12px;">
-                    <input type="text" id="catalogo-search" placeholder="Buscar usuario o vendedor..." oninput="filtrarTablaCatalogo()"
-                        style="padding:7px 12px;border:1px solid var(--border);border-radius:var(--radius);font-size:13px;width:300px;">
-                    <span id="catalogo-count" style="font-size:13px;color:var(--text-secondary);"></span>
+                <div class="admin-search-bar">
+                    <input type="text" id="catalogo-search" class="admin-search-input" placeholder="Buscar usuario o vendedor..." oninput="filtrarTablaCatalogo()">
+                    <span id="catalogo-count" class="admin-search-count"></span>
                 </div>
                 <section class="table-card">
                     <div class="table-wrapper">
@@ -812,9 +811,8 @@
                     <h3>Mapeo Vendedor → Dynamics 365</h3>
                     <button class="btn btn-primary" onclick="abrirModalMapa()">+ Nuevo Mapeo</button>
                 </div>
-                <div style="padding:0 32px 12px;">
-                    <input type="text" id="mapa-search" placeholder="Buscar vendedor..." oninput="filtrarTablaMapa()"
-                        style="padding:7px 12px;border:1px solid var(--border);border-radius:var(--radius);font-size:13px;width:280px;">
+                <div class="admin-search-bar">
+                    <input type="text" id="mapa-search" class="admin-search-input" placeholder="Buscar vendedor..." oninput="filtrarTablaMapa()">
                 </div>
                 <section class="table-card">
                     <div class="table-wrapper">
