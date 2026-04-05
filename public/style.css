@@ -978,7 +978,6 @@ th.sort-desc .sort-icon::after { content: '▼'; color: var(--primary); }
 /* Welcome */
 .dashboard-welcome {
     padding: 28px 28px 10px;
-    animation: dashFadeInUp 0.5s ease both;
 }
 .dashboard-welcome h2 {
     font-size: 24px; font-weight: 800; color: var(--text);
@@ -989,7 +988,6 @@ th.sort-desc .sort-icon::after { content: '▼'; color: var(--primary); }
 /* Filters */
 .dashboard-filters {
     padding: 0 28px 6px;
-    animation: dashFadeInUp 0.5s ease 0.08s both;
 }
 .dash-filter-bar {
     display: flex; align-items: flex-end; gap: 14px;
@@ -1051,7 +1049,6 @@ th.sort-desc .sort-icon::after { content: '▼'; color: var(--primary); }
     padding: 20px 22px;
     display: flex; align-items: center; gap: 16px;
     transition: transform 0.22s ease, box-shadow 0.22s ease, border-color 0.22s ease;
-    animation: dashFadeInUp 0.5s ease both;
     position: relative; overflow: hidden;
     cursor: default;
 }
@@ -1116,7 +1113,6 @@ th.sort-desc .sort-icon::after { content: '▼'; color: var(--primary); }
 /* Sync Progress */
 .dashboard-sync-bar {
     padding: 0 28px 20px;
-    animation: dashFadeInUp 0.5s ease 0.28s both;
 }
 .sync-progress-card {
     background: var(--surface); border-radius: 14px;
@@ -1185,7 +1181,6 @@ th.sort-desc .sort-icon::after { content: '▼'; color: var(--primary); }
     padding: 22px 24px;
     min-width: 0; /* prevent grid cell overflow */
     transition: box-shadow 0.22s ease, border-color 0.22s ease;
-    animation: dashFadeInUp 0.5s ease 0.33s both;
 }
 .dashboard-chart-card:hover {
     box-shadow: var(--shadow-md);
@@ -1212,7 +1207,6 @@ th.sort-desc .sort-icon::after { content: '▼'; color: var(--primary); }
     box-shadow: var(--shadow); border: 1px solid var(--border);
     padding: 22px 24px;
     min-width: 0; /* prevent grid cell overflow */
-    animation: dashFadeInUp 0.5s ease 0.38s both;
     transition: box-shadow 0.22s ease;
 }
 .dashboard-ranking-card:hover { box-shadow: var(--shadow-md); }
@@ -1274,7 +1268,6 @@ th.sort-desc .sort-icon::after { content: '▼'; color: var(--primary); }
 /* Recent orders */
 .dashboard-recent {
     padding: 0 28px 32px;
-    animation: dashFadeInUp 0.5s ease 0.43s both;
 }
 .dashboard-recent-card {
     background: var(--surface); border-radius: 14px;

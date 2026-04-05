@@ -260,6 +260,7 @@ La función `getVendorFilter(user)` en `middleware/auth.js` retorna:
 - **Botones:** `.btn-primary` (gradient), `.btn-ghost`, `.btn-danger`, `.btn-lg`, `.btn-icon`, `.btn-sm`
 - **Login screen:** Glassmorphism card, radial gradient animado, shimmerLine top border
 - **Sidebar:** Accent line bajo brand, indicador activo con `::before`, transiciones suaves
+- **GSAP 3.12.5:** Cargado vía unpkg. Archivo `public/animations.js` maneja todas las animaciones de forma no-destructiva (wrappea funciones, MutationObserver). Respeta `prefers-reduced-motion`. Anima: init app (sidebar/topbar/nav), cambio de vistas (fade+slide), filas de tablas (stagger), KPI cards (scale+fade), chart/ranking cards, modales (scale), toasts (slide), botones (press effect).
 - **Para agregar componentes modernos** considerar migrar vistas a shadcn/ui o Tailwind (ver `/ckm:ui-styling`)
 
 ---
