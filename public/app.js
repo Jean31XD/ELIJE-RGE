@@ -12,6 +12,21 @@ function apiFetch(url, options = {}) {
     });
 }
 
+// Dark mode theme toggle
+function initTheme() {
+    const saved = localStorage.getItem('theme');
+    const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+    const theme = saved || (prefersDark ? 'dark' : 'light');
+    document.documentElement.setAttribute('data-theme', theme);
+}
+
+function toggleTheme() {
+    const current = document.documentElement.getAttribute('data-theme');
+    const next = current === 'dark' ? 'light' : 'dark';
+    document.documentElement.setAttribute('data-theme', next);
+    localStorage.setItem('theme', next);
+}
+
 // Mobile sidebar toggle
 function toggleSidebar() {
     const sidebar = document.querySelector('.sidebar');
@@ -78,6 +93,7 @@ let vendedorColorIndex = 0;
 
 // === Inicializacion ===
 window.addEventListener('DOMContentLoaded', () => {
+    initTheme();
     // Delegate to auth check — login.js calls initApp() after successful auth
     if (typeof checkAuth === 'function') {
         checkAuth();
