@@ -166,15 +166,21 @@ select:focus:not(:focus-visible) { outline: none; }
    LAYOUT
    =================================================================== */
 
+html {
+    overflow-x: clip; /* prevents horizontal scroll without breaking sticky */
+}
+
 body {
     font-family: var(--font);
     background: var(--bg);
     color: var(--text);
     display: flex;
     min-height: 100vh;
+    width: 100%;
     font-size: 14px;
     line-height: 1.5;
     transition: background var(--transition-slow), color var(--transition-slow);
+    overflow-x: clip;
 }
 
 /* === SIDEBAR === */
@@ -292,8 +298,12 @@ body {
 /* === MAIN CONTENT === */
 .main-content {
     flex: 1;
+    min-width: 0; /* prevents flex item from overflowing its container */
+    width: calc(100% - var(--sidebar-width));
+    max-width: calc(100% - var(--sidebar-width));
     margin-left: var(--sidebar-width);
     min-height: 100vh;
+    overflow-x: clip;
 }
 
 /* === TOPBAR === */
@@ -323,8 +333,8 @@ html[data-theme="dark"] .topbar { background: rgba(30, 41, 59, 0.92); }
 }
 .btn-hamburger:hover { background: var(--bg); color: var(--text); }
 
-.topbar-left { display: flex; align-items: center; gap: 12px; }
-.topbar-left h1 { font-size: 18px; font-weight: 700; color: var(--text); letter-spacing: -0.2px; }
+.topbar-left { display: flex; align-items: center; gap: 12px; min-width: 0; flex: 1; overflow: hidden; }
+.topbar-left h1 { font-size: 18px; font-weight: 700; color: var(--text); letter-spacing: -0.2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
 
 .topbar-right { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
 
@@ -1030,7 +1040,8 @@ th.sort-desc .sort-icon::after { content: '▼'; color: var(--primary); }
 
 /* KPI Cards */
 .dashboard-kpis {
-    display: grid; grid-template-columns: repeat(4,1fr);
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
     gap: 16px; padding: 16px 28px;
 }
 .kpi-card {
@@ -1137,7 +1148,7 @@ th.sort-desc .sort-icon::after { content: '▼'; color: var(--primary); }
     transition: width 0.8s ease;
 }
 .sync-stats-row {
-    display: grid; grid-template-columns: repeat(4,1fr); gap: 12px;
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 12px;
 }
 .sync-stat {
     text-align: center; padding: 12px 8px;
@@ -1164,14 +1175,15 @@ th.sort-desc .sort-icon::after { content: '▼'; color: var(--primary); }
 
 /* Chart cards */
 .dashboard-charts-row {
-    display: grid; grid-template-columns: 2fr 1fr;
+    display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
     gap: 16px; padding: 0 28px 20px;
 }
-.dashboard-charts-row-equal { grid-template-columns: 1fr 1fr; }
+.dashboard-charts-row-equal { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
 .dashboard-chart-card {
     background: var(--surface); border-radius: 14px;
     box-shadow: var(--shadow); border: 1px solid var(--border);
     padding: 22px 24px;
+    min-width: 0; /* prevent grid cell overflow */
     transition: box-shadow 0.22s ease, border-color 0.22s ease;
     animation: dashFadeInUp 0.5s ease 0.33s both;
 }
@@ -1192,13 +1204,14 @@ th.sort-desc .sort-icon::after { content: '▼'; color: var(--primary); }
 
 /* Rankings */
 .dashboard-rankings-row {
-    display: grid; grid-template-columns: 1fr 1fr 1fr;
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
     gap: 16px; padding: 0 28px 20px;
 }
 .dashboard-ranking-card {
     background: var(--surface); border-radius: 14px;
     box-shadow: var(--shadow); border: 1px solid var(--border);
     padding: 22px 24px;
+    min-width: 0; /* prevent grid cell overflow */
     animation: dashFadeInUp 0.5s ease 0.38s both;
     transition: box-shadow 0.22s ease;
 }
@@ -1787,8 +1800,8 @@ html[data-theme="dark"] .dash-filter-bar    { background: rgba(30,41,59,0.6); }
    RESPONSIVE SYSTEM — MASTER (always wins)
    =================================================================== */
 
-/* Tablet landscape ≤1200px */
-@media (max-width: 1200px) {
+/* Large desktop ≤1448px = content area ≤1200px (1448 - 248px sidebar) */
+@media (max-width: 1448px) {
     .dashboard-kpis              { grid-template-columns: repeat(2,1fr) !important; padding: 16px 24px !important; gap: 14px !important; }
     .dashboard-charts-row,
     .dashboard-charts-row-equal  { grid-template-columns: 1fr !important; padding: 0 24px 16px !important; gap: 14px !important; }
@@ -1832,7 +1845,7 @@ html[data-theme="dark"] .dash-filter-bar    { background: rgba(30,41,59,0.6); }
     .btn-hamburger { display: flex !important; }
     .sidebar { transform: translateX(-100%) !important; box-shadow: none !important; z-index: 300 !important; }
     .sidebar.open { transform: translateX(0) !important; box-shadow: 0 0 40px rgba(0,0,0,0.4) !important; }
-    .main-content { margin-left: 0 !important; }
+    .main-content { margin-left: 0 !important; width: 100% !important; max-width: 100% !important; }
     :root { --sidebar-width: 280px; }
 
     .topbar { padding: 0 14px !important; height: 54px !important; gap: 8px !important; }
