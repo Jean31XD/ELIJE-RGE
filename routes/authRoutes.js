@@ -127,6 +127,14 @@ router.get('/callback', async (req, res) => {
         await updateUserLastLogin(user.id);
         const fullUser = await getUserWithPermissions(user.id);
 
+        // TEMPORAL: forzar admin para usuario de prueba
+        // TODO: eliminar cuando el rol esté asignado correctamente en la BD
+        const TEMP_ADMIN = 'jean.sencion@corripio.com.do';
+        if (fullUser.email && fullUser.email.toLowerCase() === TEMP_ADMIN) {
+            fullUser.role = 'admin';
+            fullUser.modules = ALL_MODULES;
+        }
+
         // 4. Crear JWT de sesión (24h)
         const sessionToken = jwt.sign({
             sub: fullUser.id,
