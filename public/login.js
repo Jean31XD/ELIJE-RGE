@@ -92,7 +92,7 @@ function checkAuth() {
             return res.json();
         })
         .then(user => {
-            if (user) initApp();
+            if (user) initApp(user);
         })
         .catch(() => {
             mostrarLoginOverlay();

@@ -102,8 +102,9 @@ window.addEventListener('DOMContentLoaded', () => {
     }
 });
 
-function initApp() {
-    const user = typeof getCurrentUser === 'function' ? getCurrentUser() : null;
+function initApp(apiUser) {
+    // Preferir el usuario del API (fresco) sobre la cookie (puede estar desactualizada)
+    const user = apiUser || (typeof getCurrentUser === 'function' ? getCurrentUser() : null);
 
     // Show sidebar and main content, hide overlay
     const sidebar = document.querySelector('.sidebar');
