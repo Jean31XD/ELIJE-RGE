@@ -127,14 +127,6 @@ router.get('/callback', async (req, res) => {
         await updateUserLastLogin(user.id);
         const fullUser = await getUserWithPermissions(user.id);
 
-        // TEMPORAL: forzar admin para usuario de prueba
-        // TODO: eliminar cuando el rol esté asignado correctamente en la BD
-        const TEMP_ADMIN = 'jean.sencion@corripio.com.do';
-        if (fullUser.email && fullUser.email.toLowerCase() === TEMP_ADMIN) {
-            fullUser.role = 'admin';
-            fullUser.modules = ALL_MODULES;
-        }
-
         // 4. Crear JWT de sesión (24h)
         const sessionToken = jwt.sign({
             sub: fullUser.id,
@@ -188,14 +180,6 @@ router.get('/me', requireAuth, async (req, res) => {
     try {
         const user = await getUserWithPermissions(req.user.sub);
         if (!user) return res.status(404).json({ error: 'Usuario no encontrado' });
-
-        // TEMPORAL: forzar admin para usuario de prueba
-        // TODO: eliminar cuando el rol esté asignado correctamente en la BD
-        const TEMP_ADMIN = 'jean.sencion@corripio.com.do';
-        if (user.email && user.email.toLowerCase() === TEMP_ADMIN) {
-            user.role = 'admin';
-            user.modules = ALL_MODULES;
-        }
 
         // Refrescar la cookie app_user para que el frontend vea el rol actualizado
         const isProduction = (req.get('x-forwarded-proto') || req.protocol) === 'https';
