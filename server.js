@@ -120,7 +120,9 @@ const authLimiter = rateLimit({
 });
 
 app.use('/api/', apiLimiter);
-app.use('/api/auth/', authLimiter);
+// authLimiter solo en los endpoints OAuth (no en /me ni /logout)
+app.use('/api/auth/microsoft', authLimiter);
+app.use('/api/auth/callback', authLimiter);
 
 app.use(express.json());
 

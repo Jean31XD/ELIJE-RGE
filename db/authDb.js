@@ -114,9 +114,22 @@ async function listUsers() {
         groupsByUser[r.user_id].push(r.group_id);
     });
 
+    // Get all individual vendor assignments
+    const vendorsByUser = {};
+    try {
+        const vendorsResult = await db.request().query(`SELECT user_id, vendedor_nombre FROM [dbo].[app_user_vendors]`);
+        vendorsResult.recordset.forEach(r => {
+            if (!vendorsByUser[r.user_id]) vendorsByUser[r.user_id] = [];
+            vendorsByUser[r.user_id].push(r.vendedor_nombre);
+        });
+    } catch (e) {
+        console.error('[listUsers] Error al cargar vendedores individuales:', e.message);
+    }
+
     users.forEach(u => {
         u.modules = modulesByUser[u.id] || [];
         u.vendorGroupIds = groupsByUser[u.id] || [];
+        u.individualVendors = vendorsByUser[u.id] || [];
     });
 
     return users;

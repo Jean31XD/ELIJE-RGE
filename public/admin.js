@@ -77,9 +77,14 @@ function renderUsuarios(users) {
         ).join('') || '<span style="color:var(--text-secondary);font-size:12px;">Ninguno</span>';
 
         const groupsCount = (u.vendorGroupIds || []).length;
-        const groupsHtml = groupsCount > 0
-            ? `<span class="vendor-chip">${groupsCount} grupo${groupsCount !== 1 ? 's' : ''}</span>`
-            : '<span style="color:var(--text-secondary);font-size:12px;">Ninguno</span>';
+        const vendorsCount = (u.individualVendors || []).length;
+        let groupsHtml = '';
+        if (groupsCount === 0 && vendorsCount === 0) {
+            groupsHtml = '<span style="color:var(--text-secondary);font-size:12px;">Ninguno</span>';
+        } else {
+            if (groupsCount > 0) groupsHtml += `<span class="vendor-chip">${groupsCount} grupo${groupsCount !== 1 ? 's' : ''}</span>`;
+            if (vendorsCount > 0) groupsHtml += `<span class="vendor-chip">${vendorsCount} vendedor${vendorsCount !== 1 ? 'es' : ''}</span>`;
+        }
 
         const activeHtml = u.active
             ? '<span style="color:var(--success);font-size:12px;font-weight:600;">Activo</span>'
