@@ -179,28 +179,34 @@ async function guardarUsuario() {
     if (btn) { btn.disabled = true; btn.textContent = 'Guardando...'; }
 
     try {
-        await Promise.all([
-            apiFetch(`/api/admin/users/${editingUserId}`, {
-                method: 'PUT',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ role, active })
-            }),
-            apiFetch(`/api/admin/users/${editingUserId}/modules`, {
-                method: 'PUT',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ modules })
-            }),
-            apiFetch(`/api/admin/users/${editingUserId}/vendor-groups`, {
-                method: 'PUT',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ groupIds })
-            }),
-            apiFetch(`/api/admin/users/${editingUserId}/vendors`, {
-                method: 'PUT',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ vendors })
-            })
-        ]);
+        // Sequential saves to avoid parallel transaction conflicts in SQL Server
+        const r1 = await apiFetch(`/api/admin/users/${editingUserId}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ role, active })
+        });
+        if (!r1.ok) throw new Error((await r1.json()).error || 'Error al actualizar usuario');
+
+        const r2 = await apiFetch(`/api/admin/users/${editingUserId}/modules`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ modules })
+        });
+        if (!r2.ok) throw new Error((await r2.json()).error || 'Error al guardar módulos');
+
+        const r3 = await apiFetch(`/api/admin/users/${editingUserId}/vendor-groups`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ groupIds })
+        });
+        if (!r3.ok) throw new Error((await r3.json()).error || 'Error al guardar grupos de vendedores');
+
+        const r4 = await apiFetch(`/api/admin/users/${editingUserId}/vendors`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ vendors })
+        });
+        if (!r4.ok) throw new Error((await r4.json()).error || 'Error al guardar vendedores');
 
         cerrarModalUsuario();
         await cargarUsuariosAdmin();
@@ -312,18 +318,24 @@ async function guardarGrupo() {
     if (btn) { btn.disabled = true; btn.textContent = 'Guardando...'; }
 
     try {
+        let res;
         if (editingGroupId) {
-            await apiFetch(`/api/admin/vendor-groups/${editingGroupId}`, {
+            res = await apiFetch(`/api/admin/vendor-groups/${editingGroupId}`, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ name, description, vendors })
             });
         } else {
-            await apiFetch('/api/admin/vendor-groups', {
+            res = await apiFetch('/api/admin/vendor-groups', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ name, description, vendors })
             });
+        }
+
+        if (!res.ok) {
+            const errData = await res.json().catch(() => ({}));
+            throw new Error(errData.error || `Error ${res.status}`);
         }
 
         cerrarModalGrupo();
