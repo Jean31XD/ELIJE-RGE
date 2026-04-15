@@ -2069,14 +2069,14 @@ function getVendedorColor(vendedorId) {
 const _tileProviders = () => ({
     'Claro': L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png',
         { attribution: '© OpenStreetMap © CARTO', maxZoom: 19 }),
-    'Calles': L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
-        { attribution: '© OpenStreetMap contributors', maxZoom: 19 }),
+    'Calles': L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png',
+        { attribution: '© OpenStreetMap © CARTO', maxZoom: 19 }),
     'Satélite': L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
         { attribution: 'Tiles © Esri', maxZoom: 19 }),
     'Oscuro': L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',
         { attribution: '© OpenStreetMap © CARTO', maxZoom: 19 }),
-    'Topográfico': L.tileLayer('https://tile.opentopomap.org/{z}/{x}/{y}.png',
-        { attribution: '© OpenTopoMap', maxZoom: 17 })
+    'Topográfico': L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}',
+        { attribution: 'Tiles © Esri', maxZoom: 19 })
 });
 
 function initTrackingMap() {
