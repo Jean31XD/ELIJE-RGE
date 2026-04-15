@@ -286,12 +286,16 @@ async function processOrder(token, objPedido) {
     // Caché local de settings por artículo para este objPedido
     const itemSettingsCache = new Map();
 
+    let lineasOk = 0;
+    const lineasBloqueadas = [];
+
     for (let i = 0; i < lines.length; i++) {
         const line = lines[i];
         if (line.cantidad <= 0) continue;
 
         if (existingItemIds.has(line.item_id)) {
             log(`    Skipping ${line.item_id} (ya existe en D365)`);
+            lineasOk++;
             continue;
         }
 
@@ -303,9 +307,21 @@ async function processOrder(token, objPedido) {
             }
         }
 
-        await addSalesOrderLine(token, salesOrderNumber, line, i + 1, itemSettingsCache.get(line.item_id), objPedido.vendedor_sales_group_id);
+        try {
+            await addSalesOrderLine(token, salesOrderNumber, line, i + 1, itemSettingsCache.get(line.item_id), objPedido.vendedor_sales_group_id);
+            lineasOk++;
+        } catch (lineErr) {
+            const lineErrMsg = extractErrorMessage(lineErr);
+            log(`    [LÍNEA OMITIDA] ${line.item_id}: ${lineErrMsg}`);
+            lineasBloqueadas.push({ item_id: line.item_id, error: lineErrMsg });
+        }
     }
-    log(`  Líneas insertadas exitosamente.`);
+
+    if (lineasBloqueadas.length > 0) {
+        log(`  Líneas insertadas: ${lineasOk} exitosas, ${lineasBloqueadas.length} omitidas (bloqueadas/error): ${lineasBloqueadas.map(l => l.item_id).join(', ')}`);
+    } else {
+        log(`  Líneas insertadas exitosamente.`);
+    }
 
     // PATCH garantizado: espera 2s (D365 necesita procesar internamente) y luego
     // sobrescribe el responsable y los campos de referencia ANTES de marcar como enviado.
