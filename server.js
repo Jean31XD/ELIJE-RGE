@@ -77,6 +77,8 @@ app.use(helmet({
                 "https://*.tile.openstreetmap.org",
                 "https://*.openstreetmap.org",
                 "https://*.basemaps.cartocdn.com",
+                "https://server.arcgisonline.com",
+                "https://*.arcgisonline.com",
                 "https://unpkg.com"
             ],
             connectSrc: [
@@ -84,7 +86,9 @@ app.use(helmet({
                 "https://unpkg.com",
                 "https://cdn.jsdelivr.net",
                 "https://*.tile.openstreetmap.org",
-                "https://*.openstreetmap.org"
+                "https://*.openstreetmap.org",
+                "https://server.arcgisonline.com",
+                "https://*.arcgisonline.com"
             ],
             workerSrc: ["'self'", "blob:"],
             frameSrc: ["'none'"],
