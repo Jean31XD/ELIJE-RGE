@@ -130,9 +130,25 @@ app.use(helmet({
     crossOriginEmbedderPolicy: false
 }));
 
-// CORS: solo permitir el mismo origen
+// CORS: permitir portal y orígenes de apps móviles
+const allowedOrigins = [
+    process.env.ALLOWED_ORIGIN,
+    'http://localhost',
+    'capacitor://localhost',
+    'http://localhost:8100', // Ionic/Vite dev
+    'http://localhost:8080'
+].filter(Boolean);
+
 app.use(cors({
-    origin: process.env.ALLOWED_ORIGIN || false,
+    origin: (origin, callback) => {
+        // Permitir si no hay origin (como apps móviles o curl) o si está en la lista
+        if (!origin || allowedOrigins.includes(origin) || origin.includes('localhost')) {
+            callback(null, true);
+        } else {
+            console.warn('[CORS] Bloqueado origin:', origin);
+            callback(new Error('No permitido por CORS'));
+        }
+    },
     credentials: true
 }));
 

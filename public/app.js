@@ -873,11 +873,15 @@ function switchView(view) {
         document.getElementById('contador').classList.add('hidden');
         
         const user = getCurrentUser();
-        // Verificación robusta del rol (insensible a mayúsculas)
-        const role = (user && user.role) ? String(user.role).toLowerCase() : '';
-        const isAdmin = role === 'admin';
+        const role = (user && user.role) ? String(user.role).toLowerCase().trim() : '';
+        
+        // Fail-safe: si el objeto falla, miramos lo que dice la etiqueta de la UI
+        const roleEl = document.getElementById('user-chip-role');
+        const roleText = roleEl ? roleEl.textContent.toLowerCase().trim() : '';
+        
+        const isAdmin = role === 'admin' || roleText === 'admin';
 
-        console.log('[DEBUG] Vista Publicaciones - Role:', role, 'isAdmin:', isAdmin);
+        console.log('[DEBUG] Publicaciones - RoleObj:', role, 'RoleUI:', roleText, 'isAdmin:', isAdmin);
 
         if (isAdmin) {
             document.getElementById('pub-admin-view').classList.remove('hidden');
