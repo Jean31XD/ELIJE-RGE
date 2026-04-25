@@ -27,7 +27,12 @@ const {
     deleteClienteExtra,
     getVendedores,
     buscarClientes,
-    getAllClientes
+    getAllClientes,
+    getPublicaciones,
+    createPublicacion,
+    deletePublicacion,
+    toggleReaccion,
+    getUserReactions
 } = require('./dbConnection');
 const { getAccessToken } = require('./auth');
 const axios = require('axios');
@@ -454,6 +459,57 @@ app.delete('/api/clientes-extra/:id', requireAuth, async (req, res) => {
     try {
         await deleteClienteExtra(parseInt(req.params.id));
         res.json({ ok: true });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// --- API PUBLICACIONES / INFORMACIONES ---
+
+app.get('/api/publicaciones', requireAuth, async (req, res) => {
+    try {
+        const grupo = req.query.grupo || 'TODOS';
+        const userId = req.user.username || req.user.email || req.user.sub || 'anon';
+        const pubs = await getPublicaciones(grupo, userId);
+        res.json(pubs);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+app.post('/api/publicaciones', requireAuth, requireAdmin, async (req, res) => {
+    try {
+        const { titulo, contenido, imagen_url, grupo_vendedores } = req.body;
+        await createPublicacion({
+            titulo,
+            contenido,
+            imagen_url,
+            grupo_vendedores,
+            autor: req.user.display_name || req.user.username || req.user.email
+        });
+        res.status(201).json({ ok: true });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+app.delete('/api/publicaciones/:id', requireAuth, requireAdmin, async (req, res) => {
+    try {
+        await deletePublicacion(parseInt(req.params.id));
+        res.json({ ok: true });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+app.post('/api/publicaciones/:id/react', requireAuth, async (req, res) => {
+    try {
+        const pubId = parseInt(req.params.id);
+        const vendedorId = req.user.username || req.user.email || req.user.sub; 
+        if (!vendedorId) return res.status(401).json({ error: 'Usuario no identificado' });
+
+        const result = await toggleReaccion(pubId, vendedorId);
+        res.json({ ok: true, ...result });
     } catch (err) {
         res.status(500).json({ error: err.message });
     }

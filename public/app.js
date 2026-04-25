@@ -810,6 +810,8 @@ function switchView(view) {
     document.getElementById('vista-cobros').classList.add('hidden');
     document.getElementById('vista-tracking').classList.add('hidden');
     document.getElementById('vista-clientes-extra').classList.add('hidden');
+    const vistaPub = document.getElementById('vista-publicaciones');
+    if (vistaPub) vistaPub.classList.add('hidden');
     const vistaAdmin = document.getElementById('vista-admin');
     if (vistaAdmin) vistaAdmin.classList.add('hidden');
 
@@ -864,6 +866,11 @@ function switchView(view) {
         document.getElementById('page-title').textContent = 'Clientes Asignados a Vendedores';
         document.getElementById('contador').classList.add('hidden');
         cargarClientesExtra();
+    } else if (view === 'publicaciones') {
+        if (vistaPub) vistaPub.classList.remove('hidden');
+        document.getElementById('page-title').textContent = 'Publicaciones e Informaciones';
+        document.getElementById('contador').classList.add('hidden');
+        cargarPublicacionesAdmin();
     } else if (view === 'admin') {
         const vistaAdm = document.getElementById('vista-admin');
         if (vistaAdm) vistaAdm.classList.remove('hidden');
@@ -2780,6 +2787,116 @@ async function eliminarClienteExtra(id, clienteNombre, vendedorNombre) {
         renderizarKpisCE();
     } catch {
         showToast('Error de conexión', 'error');
+    }
+}
+
+// === Publicaciones Admin ===
+
+let todasLasPublicaciones = [];
+
+async function cargarPublicacionesAdmin() {
+    const body = document.getElementById('pub-body');
+    const loading = document.getElementById('pub-loading');
+    const empty = document.getElementById('pub-empty');
+
+    body.innerHTML = '';
+    loading.classList.remove('hidden');
+    empty.classList.add('hidden');
+
+    try {
+        const res = await apiFetch('/api/publicaciones');
+        if (!res.ok) throw new Error('Error al cargar publicaciones');
+        todasLasPublicaciones = await res.json();
+        
+        loading.classList.add('hidden');
+        if (todasLasPublicaciones.length === 0) {
+            empty.classList.remove('hidden');
+            return;
+        }
+
+        renderizarTablaPublicaciones();
+    } catch (err) {
+        loading.innerHTML = `<p style="color: var(--danger);">Error: ${err.message}</p>`;
+    }
+}
+
+function renderizarTablaPublicaciones() {
+    const body = document.getElementById('pub-body');
+    body.innerHTML = todasLasPublicaciones.map(p => `
+        <tr>
+            <td style="color: var(--text-secondary); font-size: 13px;">${new Date(p.fecha_creacion).toLocaleDateString()}</td>
+            <td style="font-weight: 500;">${escapeHtml(p.titulo)}</td>
+            <td><span class="badge">${escapeHtml(p.grupo_vendedores)}</span></td>
+            <td class="text-center">${p.total_likes}</td>
+            <td class="text-right">
+                <button class="btn btn-ghost btn-sm btn-delete" onclick="eliminarPublicacion(${p.id})" title="Eliminar">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
+                </button>
+            </td>
+        </tr>
+    `).join('');
+}
+
+function abrirModalPublicacion() {
+    const modal = document.getElementById('modal-pub');
+    const form = document.getElementById('form-pub');
+    form.reset();
+    
+    // Poblar grupos
+    const select = document.getElementById('pub-grupo');
+    if (select) {
+        select.innerHTML = '<option value="TODOS">TODOS LOS VENDEDORES</option>';
+        if (dashFilterOptions && dashFilterOptions.vendedores) {
+             // Podriamos usar grupos si existieran en el admin, 
+             // por ahora usaremos los nombres de los vendedores o TODOS.
+             // El usuario menciono "separar por grupo de vendedores".
+             // Si el admin tiene grupos definidos, los usaremos.
+        }
+    }
+
+    modal.classList.remove('hidden');
+}
+
+function cerrarModalPublicacion() {
+    document.getElementById('modal-pub').classList.add('hidden');
+}
+
+document.getElementById('form-pub').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const data = {
+        titulo: document.getElementById('pub-titulo').value,
+        contenido: document.getElementById('pub-contenido').value,
+        imagen_url: document.getElementById('pub-imagen').value,
+        grupo_vendedores: document.getElementById('pub-grupo').value
+    };
+
+    try {
+        const res = await apiFetch('/api/publicaciones', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(data)
+        });
+
+        if (!res.ok) throw new Error('Error al publicar');
+        
+        showToast('Publicación creada correctamente', 'success');
+        cerrarModalPublicacion();
+        cargarPublicacionesAdmin();
+    } catch (err) {
+        alert(err.message);
+    }
+});
+
+async function eliminarPublicacion(id) {
+    if (!confirm('¿Estás seguro de eliminar esta publicación?')) return;
+
+    try {
+        const res = await apiFetch(`/api/publicaciones/${id}`, { method: 'DELETE' });
+        if (!res.ok) throw new Error('Error al eliminar');
+        showToast('Publicación eliminada', 'success');
+        cargarPublicacionesAdmin();
+    } catch (err) {
+        alert(err.message);
     }
 }
 

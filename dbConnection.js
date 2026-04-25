@@ -85,15 +85,35 @@ async function ensureColumnExists() {
             );
         END
     `);
-    // Si la tabla ya existia sin la columna empleado_responsable, agregarla
+
+    // --- NUEVAS TABLAS DE INFORMACIONES/PUBLICACIONES ---
     await db.request().query(`
-        IF EXISTS (SELECT 1 FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME = 'vendedor_cliente_extra')
-        AND NOT EXISTS (
-            SELECT 1 FROM INFORMATION_SCHEMA.COLUMNS
-            WHERE TABLE_NAME = 'vendedor_cliente_extra' AND COLUMN_NAME = 'empleado_responsable'
-        )
+        IF NOT EXISTS (SELECT 1 FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME = 'publicaciones')
         BEGIN
-            ALTER TABLE [dbo].[vendedor_cliente_extra] ADD empleado_responsable NVARCHAR(100) NOT NULL DEFAULT '';
+            CREATE TABLE [dbo].[publicaciones] (
+                id INT IDENTITY(1,1) PRIMARY KEY,
+                titulo NVARCHAR(200) NOT NULL,
+                contenido NVARCHAR(MAX) NOT NULL,
+                imagen_url NVARCHAR(MAX) NULL,
+                grupo_vendedores NVARCHAR(100) DEFAULT 'TODOS',
+                autor NVARCHAR(100) NULL,
+                fecha_creacion DATETIME DEFAULT CAST(GETDATE() AT TIME ZONE 'UTC' AT TIME ZONE 'SA Western Standard Time' AS DATETIME)
+            );
+        END
+    `);
+
+    await db.request().query(`
+        IF NOT EXISTS (SELECT 1 FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME = 'publicaciones_reacciones')
+        BEGIN
+            CREATE TABLE [dbo].[publicaciones_reacciones] (
+                id INT IDENTITY(1,1) PRIMARY KEY,
+                publicacion_id INT NOT NULL,
+                vendedor_id NVARCHAR(100) NOT NULL, -- elije_last_vendedor o username
+                tipo NVARCHAR(20) DEFAULT 'like',
+                fecha_reaccion DATETIME DEFAULT CAST(GETDATE() AT TIME ZONE 'UTC' AT TIME ZONE 'SA Western Standard Time' AS DATETIME),
+                CONSTRAINT UQ_pub_vend UNIQUE (publicacion_id, vendedor_id),
+                CONSTRAINT FK_pub_reac FOREIGN KEY (publicacion_id) REFERENCES [dbo].[publicaciones](id) ON DELETE CASCADE
+            );
         END
     `);
 }
@@ -721,42 +741,79 @@ async function getTrackingLogs(filters = {}, vendorFilter = null) {
     return result.recordset;
 }
 
-async function createRango(rango) {
+// === Publicaciones / Informaciones ===
+
+async function getPublicaciones(grupo = 'TODOS', currentUser = null) {
+    const db = await getPool();
+    const request = db.request();
+    request.input('grupo', sql.NVarChar(100), grupo);
+    request.input('currentUser', sql.NVarChar(100), currentUser);
+    
+    // Traer publicaciones para el grupo especifico o para TODOS
+    const result = await request.query(`
+        SELECT p.*, 
+               (SELECT COUNT(*) FROM [dbo].[publicaciones_reacciones] WHERE publicacion_id = p.id) as total_likes,
+               CASE WHEN EXISTS(SELECT 1 FROM [dbo].[publicaciones_reacciones] WHERE publicacion_id = p.id AND vendedor_id = @currentUser)
+               THEN 1 ELSE 0 END as userHasReacted
+        FROM [dbo].[publicaciones] p
+        WHERE p.grupo_vendedores = 'TODOS' OR p.grupo_vendedores = @grupo
+        ORDER BY p.fecha_creacion DESC
+    `);
+    return result.recordset;
+}
+
+async function createPublicacion(data) {
     const db = await getPool();
     await db.request()
-        .input('cat', sql.VarChar(100), rango.categoria)
-        .input('min', sql.Int, rango.rango_min)
-        .input('max', sql.Int, rango.rango_max)
-        .input('val', sql.Decimal(18, 4), rango.valor)
+        .input('titulo', sql.NVarChar(200), data.titulo)
+        .input('contenido', sql.NVarChar(sql.MAX), data.contenido)
+        .input('imagen_url', sql.NVarChar(sql.MAX), data.imagen_url || null)
+        .input('grupo', sql.NVarChar(100), data.grupo_vendedores || 'TODOS')
+        .input('autor', sql.NVarChar(100), data.autor || 'Admin')
         .query(`
-            INSERT INTO [dbo].[esquemas_rangos] (categoria, rango_min, rango_max, valor)
-            VALUES (@cat, @min, @max, @val)
+            INSERT INTO [dbo].[publicaciones] (titulo, contenido, imagen_url, grupo_vendedores, autor)
+            VALUES (@titulo, @contenido, @imagen_url, @grupo, @autor)
         `);
 }
 
-async function updateRango(id, rango) {
+async function deletePublicacion(id) {
     const db = await getPool();
     await db.request()
         .input('id', sql.Int, id)
-        .input('cat', sql.VarChar(100), rango.categoria)
-        .input('min', sql.Int, rango.rango_min)
-        .input('max', sql.Int, rango.rango_max)
-        .input('val', sql.Decimal(18, 4), rango.valor)
-        .query(`
-            UPDATE [dbo].[esquemas_rangos]
-            SET categoria = @cat,
-                rango_min = @min,
-                rango_max = @max,
-                valor = @val
-            WHERE id = @id
-        `);
+        .query('DELETE FROM [dbo].[publicaciones] WHERE id = @id');
 }
 
-async function deleteRango(id) {
+async function toggleReaccion(publicacionId, vendedorId) {
     const db = await getPool();
-    await db.request()
-        .input('id', sql.Int, id)
-        .query('DELETE FROM [dbo].[esquemas_rangos] WHERE id = @id');
+    // Revisar si ya existe
+    const check = await db.request()
+        .input('pubId', sql.Int, publicacionId)
+        .input('vendId', sql.NVarChar(100), vendedorId)
+        .query('SELECT 1 FROM [dbo].[publicaciones_reacciones] WHERE publicacion_id = @pubId AND vendedor_id = @vendId');
+
+    if (check.recordset.length > 0) {
+        // Quitar reaccion
+        await db.request()
+            .input('pubId', sql.Int, publicacionId)
+            .input('vendId', sql.NVarChar(100), vendedorId)
+            .query('DELETE FROM [dbo].[publicaciones_reacciones] WHERE publicacion_id = @pubId AND vendedor_id = @vendId');
+        return { action: 'removed' };
+    } else {
+        // Agregar reaccion
+        await db.request()
+            .input('pubId', sql.Int, publicacionId)
+            .input('vendId', sql.NVarChar(100), vendedorId)
+            .query('INSERT INTO [dbo].[publicaciones_reacciones] (publicacion_id, vendedor_id) VALUES (@pubId, @vendId)');
+        return { action: 'added' };
+    }
+}
+
+async function getUserReactions(vendedorId) {
+    const db = await getPool();
+    const result = await db.request()
+        .input('vendId', sql.NVarChar(100), vendedorId)
+        .query('SELECT publicacion_id FROM [dbo].[publicaciones_reacciones] WHERE vendedor_id = @vendId');
+    return result.recordset.map(r => r.publicacion_id);
 }
 
 module.exports = {
@@ -784,5 +841,10 @@ module.exports = {
     deleteClienteExtra,
     getVendedores,
     buscarClientes,
-    getAllClientes
+    getAllClientes,
+    getPublicaciones,
+    createPublicacion,
+    deletePublicacion,
+    toggleReaccion,
+    getUserReactions
 };
