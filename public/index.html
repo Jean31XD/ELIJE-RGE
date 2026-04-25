@@ -726,43 +726,69 @@
 
         <!-- Vista Publicaciones / Informaciones -->
         <div id="vista-publicaciones" class="hidden">
-            <div style="padding: 0 32px 20px; display: flex; align-items: center; gap: 16px;">
-                <div style="flex: 1;">
-                    <p style="color: var(--text-secondary); margin: 0;">Crea y gestiona publicaciones para los vendedores.</p>
+            <!-- Vista de Administración (Solo Admins) -->
+            <div id="pub-admin-view" class="hidden">
+                <div style="padding: 0 32px 20px; display: flex; align-items: center; gap: 16px;">
+                    <div style="flex: 1;">
+                        <p style="color: var(--text-secondary); margin: 0;">Crea y gestiona publicaciones para los vendedores.</p>
+                    </div>
+                    <button class="btn btn-primary" onclick="abrirModalPublicacion()">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <line x1="12" y1="5" x2="12" y2="19" />
+                            <line x1="5" y1="12" x2="19" y2="12" />
+                        </svg>
+                        Nueva Publicación
+                    </button>
                 </div>
-                <button class="btn btn-primary" onclick="abrirModalPublicacion()">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <line x1="12" y1="5" x2="12" y2="19" />
-                        <line x1="5" y1="12" x2="19" y2="12" />
-                    </svg>
-                    Nueva Publicación
-                </button>
+
+                <section class="table-card">
+                    <div class="table-wrapper">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Fecha</th>
+                                    <th>Título</th>
+                                    <th>Grupo</th>
+                                    <th class="text-center">Likes</th>
+                                    <th class="text-right">Acciones</th>
+                                </tr>
+                            </thead>
+                            <tbody id="pub-body"></tbody>
+                        </table>
+                    </div>
+                    <div id="pub-loading" class="loading-state hidden">
+                        <div class="spinner"></div>
+                        <p>Cargando publicaciones...</p>
+                    </div>
+                    <div id="pub-empty" class="empty-state hidden">
+                        <p>No hay publicaciones creadas</p>
+                    </div>
+                </section>
             </div>
 
-            <section class="table-card">
-                <div class="table-wrapper">
-                    <table>
-                        <thead>
-                            <tr>
-                                <th>Fecha</th>
-                                <th>Título</th>
-                                <th>Grupo</th>
-                                <th class="text-center">Likes</th>
-                                <th class="text-right">Acciones</th>
-                            </tr>
-                        </thead>
-                        <tbody id="pub-body"></tbody>
-                    </table>
+            <!-- Vista de Feed (Para Vendedores/Supervisores) -->
+            <div id="pub-feed-view" class="hidden">
+                <div class="feed-container" id="pub-feed-container">
+                    <!-- Cards se inyectarán aquí -->
                 </div>
-                <div id="pub-loading" class="loading-state hidden">
+                <div id="feed-loading" class="loading-state hidden">
                     <div class="spinner"></div>
-                    <p>Cargando publicaciones...</p>
+                    <p>Cargando últimas noticias...</p>
                 </div>
-                <div id="pub-empty" class="empty-state hidden">
-                    <p>No hay publicaciones creadas</p>
+                <div id="feed-empty" class="empty-state hidden">
+                    <div style="text-align: center; padding: 40px;">
+                        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="var(--text-muted)" stroke-width="1.5" style="margin-bottom: 16px;">
+                            <path d="M19 20H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h10l4 4v12a2 2 0 0 1-2 2z"></path>
+                            <polyline points="14 4 14 8 18 8"></polyline>
+                            <line x1="12" y1="18" x2="12" y2="12"></line>
+                            <line x1="9" y1="15" x2="15" y2="15"></line>
+                        </svg>
+                        <p style="color: var(--text-secondary); margin: 0;">No hay publicaciones nuevas por el momento.</p>
+                    </div>
                 </div>
-            </section>
+            </div>
         </div>
+
 
         <!-- Modal Publicación -->
         <div id="modal-pub" class="modal hidden">

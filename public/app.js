@@ -867,10 +867,21 @@ function switchView(view) {
         document.getElementById('contador').classList.add('hidden');
         cargarClientesExtra();
     } else if (view === 'publicaciones') {
+        const vistaPub = document.getElementById('vista-publicaciones');
         if (vistaPub) vistaPub.classList.remove('hidden');
         document.getElementById('page-title').textContent = 'Publicaciones e Informaciones';
         document.getElementById('contador').classList.add('hidden');
-        cargarPublicacionesAdmin();
+        
+        const user = getCurrentUser();
+        if (user && user.role === 'admin') {
+            document.getElementById('pub-admin-view').classList.remove('hidden');
+            document.getElementById('pub-feed-view').classList.add('hidden');
+            cargarPublicacionesAdmin();
+        } else {
+            document.getElementById('pub-admin-view').classList.add('hidden');
+            document.getElementById('pub-feed-view').classList.remove('hidden');
+            cargarFeedPublicaciones();
+        }
     } else if (view === 'admin') {
         const vistaAdm = document.getElementById('vista-admin');
         if (vistaAdm) vistaAdm.classList.remove('hidden');
@@ -2907,6 +2918,114 @@ async function eliminarPublicacion(id) {
         cargarPublicacionesAdmin();
     } catch (err) {
         alert(err.message);
+    }
+}
+
+// === Feed Publicaciones (User View) ===
+
+async function cargarFeedPublicaciones() {
+    const container = document.getElementById('pub-feed-container');
+    const loading = document.getElementById('feed-loading');
+    const empty = document.getElementById('feed-empty');
+
+    container.innerHTML = '';
+    loading.classList.remove('hidden');
+    empty.classList.add('hidden');
+
+    try {
+        const res = await apiFetch('/api/publicaciones');
+        if (!res.ok) throw new Error('Error al conectar con el servidor');
+        const pubs = await res.json();
+
+        loading.classList.add('hidden');
+        if (!pubs || pubs.length === 0) {
+            empty.classList.remove('hidden');
+            return;
+        }
+
+        renderizarFeedCards(pubs);
+    } catch (err) {
+        loading.innerHTML = `<p style="color: var(--danger); text-align:center;">Error: ${err.message}</p>`;
+        console.error(err);
+    }
+}
+
+function renderizarFeedCards(pubs) {
+    const container = document.getElementById('pub-feed-container');
+    
+    container.innerHTML = pubs.map(p => {
+        const fecha = new Date(p.fecha_creacion).toLocaleDateString('es-DO', { 
+            day: 'numeric', month: 'long', year: 'numeric' 
+        });
+        
+        const imgHtml = p.imagen_url 
+            ? `<div class="feed-img-wrapper"><img src="${p.imagen_url}" class="feed-img" alt="${escapeHtml(p.titulo)}"></div>`
+            : '';
+
+        return `
+            <div class="feed-card" data-id="${p.id}">
+                ${imgHtml}
+                <div class="feed-content">
+                    <div class="feed-header">
+                        <h3 class="feed-title">${escapeHtml(p.titulo)}</h3>
+                    </div>
+                    <div class="feed-meta">
+                        <span>
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
+                            ${escapeHtml(p.autor || 'Administrador')}
+                        </span>
+                        <span>
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
+                            ${fecha}
+                        </span>
+                    </div>
+                    <div class="feed-body">${escapeHtml(p.contenido)}</div>
+                </div>
+                <div class="feed-footer">
+                    <button class="like-button ${p.userHasReacted ? 'active' : ''}" onclick="toggleReaccion(${p.id})">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path></svg>
+                        <span class="like-count">${p.total_likes}</span>
+                        ${p.userHasReacted ? 'Te gusta' : 'Me gusta'}
+                    </button>
+                </div>
+            </div>
+        `;
+    }).join('');
+}
+
+async function toggleReaccion(id) {
+    const card = document.querySelector(`.feed-card[data-id="${id}"]`);
+    const btn = card?.querySelector('.like-button');
+    const countEl = btn?.querySelector('.like-count');
+    if (!btn) return;
+
+    // Optimistic UI
+    const currentlyActive = btn.classList.contains('active');
+    const currentCount = parseInt(countEl.textContent);
+    
+    btn.classList.toggle('active');
+    countEl.textContent = currentlyActive ? currentCount - 1 : currentCount + 1;
+    btn.childNodes[btn.childNodes.length - 1].textContent = currentlyActive ? ' Me gusta' : ' Te gusta';
+
+    // Animation pop
+    if (typeof gsap !== 'undefined') {
+        gsap.fromTo(btn.querySelector('svg'), { scale: 0.7 }, { scale: 1.2, duration: 0.2, yoyo: true, repeat: 1 });
+    }
+
+    try {
+        const res = await apiFetch(`/api/publicaciones/${id}/react`, { method: 'POST' });
+        if (!res.ok) throw new Error('Error al reaccionar');
+        
+        // Sync with actual server count if needed
+        const data = await res.json();
+        // Since the API returns { action: 'added'/'removed' }, we trust our optimistic update.
+    } catch (err) {
+        console.error(err);
+        // Revert optimistic
+        btn.classList.toggle('active');
+        countEl.textContent = currentCount;
+        btn.childNodes[btn.childNodes.length - 1].textContent = currentlyActive ? ' Te gusta' : ' Me gusta';
+        showToast('No se pudo guardar tu reacción', 'error');
     }
 }
 

@@ -675,6 +675,44 @@ async function getRangos() {
     return result.recordset;
 }
 
+async function createRango(data) {
+    const db = await getPool();
+    await db.request()
+        .input('cat', sql.NVarChar(100), data.categoria)
+        .input('min', sql.Int, data.rango_min)
+        .input('max', sql.Int, data.rango_max)
+        .input('val', sql.Decimal(18, 2), data.valor)
+        .query(`
+            INSERT INTO [dbo].[esquemas_rangos] (categoria, rango_min, rango_max, valor)
+            VALUES (@cat, @min, @max, @val)
+        `);
+}
+
+async function updateRango(id, data) {
+    const db = await getPool();
+    await db.request()
+        .input('id', sql.Int, id)
+        .input('cat', sql.NVarChar(100), data.categoria)
+        .input('min', sql.Int, data.rango_min)
+        .input('max', sql.Int, data.rango_max)
+        .input('val', sql.Decimal(18, 2), data.valor)
+        .query(`
+            UPDATE [dbo].[esquemas_rangos]
+            SET categoria = @cat,
+                rango_min = @min,
+                rango_max = @max,
+                valor = @val
+            WHERE id = @id
+        `);
+}
+
+async function deleteRango(id) {
+    const db = await getPool();
+    await db.request()
+        .input('id', sql.Int, id)
+        .query('DELETE FROM [dbo].[esquemas_rangos] WHERE id = @id');
+}
+
 async function getAllCobros(vendorFilter = null) {
     const db = await getPool();
     // cobros_realizados does not have a vendedor column, so we skip the vendor filter

@@ -6,14 +6,14 @@ const qs = require('qs');
  * Autenticación OAuth2 con Azure AD para Dynamics 365 F&O
  */
 async function getAccessToken() {
-    const tenantId = process.env.TENANT_ID;
+    const tenantId = process.env.DYNAMICS_TENANT_ID || process.env.TENANT_ID;
     const url = `https://login.microsoftonline.com/${tenantId}/oauth2/v2.0/token`;
 
     const data = {
-        client_id: process.env.CLIENT_ID,
-        client_secret: process.env.CLIENT_SECRET,
+        client_id: process.env.DYNAMICS_CLIENT_ID || process.env.CLIENT_ID,
+        client_secret: process.env.DYNAMICS_CLIENT_SECRET || process.env.CLIENT_SECRET,
         grant_type: 'client_credentials',
-        scope: `${process.env.RESOURCE_URL}/.default`
+        scope: `${process.env.DYNAMICS_RESOURCE_URL || process.env.RESOURCE_URL}/.default`
     };
 
     try {

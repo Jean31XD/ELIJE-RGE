@@ -20,9 +20,9 @@ const {
 } = require('../db/authDb');
 const { requireAuth } = require('../middleware/auth');
 
-const TENANT_ID = process.env.TENANT_ID;
-const CLIENT_ID = process.env.CLIENT_ID;
-const MS_AUTH_SECRET = process.env.MS_AUTH_SECRET || process.env.CLIENT_SECRET;
+const TENANT_ID = process.env.MS_AUTH_TENANT_ID || process.env.TENANT_ID;
+const CLIENT_ID = process.env.MS_AUTH_CLIENT_ID || process.env.CLIENT_ID;
+const MS_AUTH_SECRET = process.env.MS_AUTH_CLIENT_SECRET || process.env.CLIENT_SECRET;
 
 function getRedirectUri(req) {
     const host = req.get('host');
