@@ -2863,27 +2863,37 @@ function cerrarModalPublicacion() {
 
 document.getElementById('form-pub').addEventListener('submit', async (e) => {
     e.preventDefault();
-    const data = {
-        titulo: document.getElementById('pub-titulo').value,
-        contenido: document.getElementById('pub-contenido').value,
-        imagen_url: document.getElementById('pub-imagen').value,
-        grupo_vendedores: document.getElementById('pub-grupo').value
-    };
+    
+    const formData = new FormData();
+    formData.append('titulo', document.getElementById('pub-titulo').value);
+    formData.append('contenido', document.getElementById('pub-contenido').value);
+    formData.append('grupo_vendedores', document.getElementById('pub-grupo').value);
+    
+    const imageInput = document.getElementById('pub-imagen');
+    if (imageInput.files[0]) {
+        formData.append('imagen', imageInput.files[0]);
+    }
+
+    const btn = e.target.querySelector('button[type="submit"]');
+    if (btn) { btn.disabled = true; btn.textContent = 'Publicando...'; }
 
     try {
-        const res = await apiFetch('/api/publicaciones', {
+        const res = await fetch('/api/publicaciones', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(data)
+            body: formData
+            // Note: browser sets Content-Type automatically for FormData
         });
 
-        if (!res.ok) throw new Error('Error al publicar');
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Error al publicar');
         
         showToast('Publicación creada correctamente', 'success');
         cerrarModalPublicacion();
         cargarPublicacionesAdmin();
     } catch (err) {
         alert(err.message);
+    } finally {
+        if (btn) { btn.disabled = false; btn.textContent = 'Publicar Ahora'; }
     }
 });
 

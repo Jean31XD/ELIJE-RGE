@@ -48,8 +48,34 @@ const { ensureAuthSchema } = require('./db/schema');
 const authRoutes = require('./routes/authRoutes');
 const adminRoutes = require('./routes/adminRoutes');
 const { requireAuth, requireAdmin, getVendorFilter } = require('./middleware/auth');
+const multer = require('multer');
+const fs = require('fs');
 
 const app = express();
+
+// === CONFIGURACIÓN DE MULTER PARA SUBIDA DE IMÁGENES ===
+const uploadDir = path.join(__dirname, 'public', 'uploads');
+if (!fs.existsSync(uploadDir)) {
+    fs.mkdirSync(uploadDir, { recursive: true });
+}
+
+const storage = multer.diskStorage({
+    destination: (req, file, cb) => {
+        cb(null, uploadDir);
+    },
+    filename: (req, file, cb) => {
+        const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+        cb(null, uniqueSuffix + path.extname(file.originalname));
+    }
+});
+
+const upload = multer({ 
+    storage: storage,
+    limits: { fileSize: 5 * 1024 * 1024 } // 5MB limit
+});
+
+// Middleware para servir las imágenes subidas
+app.use('/uploads', express.static(uploadDir));
 
 // === SEGURIDAD ===
 
@@ -477,9 +503,16 @@ app.get('/api/publicaciones', requireAuth, async (req, res) => {
     }
 });
 
-app.post('/api/publicaciones', requireAuth, requireAdmin, async (req, res) => {
+app.post('/api/publicaciones', requireAuth, requireAdmin, upload.single('imagen'), async (req, res) => {
     try {
-        const { titulo, contenido, imagen_url, grupo_vendedores } = req.body;
+        const { titulo, contenido, grupo_vendedores } = req.body;
+        
+        // Si se subió un archivo, usar la URL relativa del servidor
+        let imagen_url = null;
+        if (req.file) {
+            imagen_url = `/uploads/${req.file.filename}`;
+        }
+
         await createPublicacion({
             titulo,
             contenido,
@@ -489,6 +522,7 @@ app.post('/api/publicaciones', requireAuth, requireAdmin, async (req, res) => {
         });
         res.status(201).json({ ok: true });
     } catch (err) {
+        console.error('Error al crear publicación:', err);
         res.status(500).json({ error: err.message });
     }
 });
