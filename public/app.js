@@ -873,7 +873,13 @@ function switchView(view) {
         document.getElementById('contador').classList.add('hidden');
         
         const user = getCurrentUser();
-        if (user && user.role === 'admin') {
+        // Verificación robusta del rol (insensible a mayúsculas)
+        const role = (user && user.role) ? String(user.role).toLowerCase() : '';
+        const isAdmin = role === 'admin';
+
+        console.log('[DEBUG] Vista Publicaciones - Role:', role, 'isAdmin:', isAdmin);
+
+        if (isAdmin) {
             document.getElementById('pub-admin-view').classList.remove('hidden');
             document.getElementById('pub-feed-view').classList.add('hidden');
             cargarPublicacionesAdmin();
