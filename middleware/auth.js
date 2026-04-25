@@ -27,11 +27,23 @@ function requireAuth(req, res, next) {
     }
 
     if (!token) return res.status(401).json({ error: 'No autenticado' });
+    
+    // Intentar verificar con el secreto principal (Node.js)
     try {
         const decoded = jwt.verify(token, process.env.JWT_SECRET, { algorithms: ['HS256'] });
         req.user = decoded;
-        next();
-    } catch {
+        return next();
+    } catch (err1) {
+        // Si falla, intentar con el secreto del servidor móvil (PHP)
+        if (process.env.MOBILE_JWT_SECRET) {
+            try {
+                const decoded = jwt.verify(token, process.env.MOBILE_JWT_SECRET, { algorithms: ['HS256'] });
+                req.user = decoded;
+                return next();
+            } catch (err2) {
+                console.error('[AUTH] Mobile token verification failed:', err2.message);
+            }
+        }
         return res.status(401).json({ error: 'Token inválido o expirado' });
     }
 }

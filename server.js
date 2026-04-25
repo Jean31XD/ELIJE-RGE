@@ -141,7 +141,7 @@ const allowedOrigins = [
 
 app.use(cors({
     origin: (origin, callback) => {
-        // Permitir si no hay origin (como apps móviles o curl) o si está en la lista
+        // Permitir si no hay origin (como apps móviles o curl) o si está en la lista o es localhost
         if (!origin || allowedOrigins.includes(origin) || origin.includes('localhost')) {
             callback(null, true);
         } else {
@@ -149,7 +149,10 @@ app.use(cors({
             callback(new Error('No permitido por CORS'));
         }
     },
-    credentials: true
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept'],
+    credentials: true,
+    optionsSuccessStatus: 200
 }));
 
 // Rate limiting general para todas las rutas API
